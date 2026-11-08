@@ -1,7 +1,21 @@
+# Builds the Windows installer, signs it, and publishes it as a GitHub release.
+# The installed app checks the latest release on start and offers to update.
+# Runs on every push that changes the app (not mobile/ or docs), or by hand from Actions.
+# Needs the repository secret TAURI_SIGNING_PRIVATE_KEY (Settings → Secrets and variables → Actions).
 name: Build Windows installer
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ['mobile/**', '**.md', '.github/workflows/mobile-pages.yml']
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-windows
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -16,10 +30,24 @@ jobs:
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      # Every build gets a higher version (0.8.<run number>) so the app sees it as new.
+      - name: Set version
+        shell: bash
+        run: |
+          node -e "const f='src-tauri/tauri.conf.json';const c=require('./'+f);c.version='0.8.${{ github.run_number }}';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
       - run: npm ci
       - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
         with:
           args: --bundles nsis
+          tagName: v__VERSION__
+          releaseName: Nora Schedule v__VERSION__
+          releaseBody: 휴대폰 동기화 포함 빌드
+          releaseDraft: false
+          prerelease: false
       - uses: actions/upload-artifact@v4
         with:
           name: nora-schedule-windows
