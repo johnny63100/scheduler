@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#6c63ff" />
+<meta name="theme-color" content="#1c1c1f" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 <meta name="apple-mobile-web-app-title" content="Nora" />
@@ -16,7 +16,7 @@
   :root {
     --bg: #f4f5fa; --surface: #fff; --surface-2: #f2f3f8; --surface-3: #e9ebf3; --border: #e5e7ef;
     --text: #1e2232; --muted: #6a7085; --faint: #a0a5b5;
-    --primary: #6c63ff; --primary-soft: #eeedff; --danger: #ef5d6c; --danger-soft: #fdecee;
+    --primary: #1c1c1f; --primary-soft: #ececef; --on-primary: #ffffff; --danger: #ef5d6c; --danger-soft: #fdecee;
     --warn-soft: #fff6e0; --warn: #a8691f;
     --radius: 16px; --radius-sm: 12px;
     --shadow: 0 6px 24px rgba(30, 34, 50, .08);
@@ -25,7 +25,7 @@
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #131419; --surface: #1c1d24; --surface-2: #23252e; --surface-3: #2c2e39; --border: #2f3240;
-      --text: #ecedf3; --muted: #9a9fb2; --faint: #6c7184; --primary: #8b84ff; --primary-soft: #2a2850;
+      --text: #ecedf3; --muted: #9a9fb2; --faint: #6c7184; --primary: #ececef; --primary-soft: #2c2e39; --on-primary: #131419;
       --danger-soft: #3a1f25; --warn-soft: #3a2f17; --warn: #f2c46b; --shadow: 0 6px 24px rgba(0,0,0,.35);
     }
   }
@@ -48,12 +48,12 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   main { padding: 4px 16px calc(110px + var(--safe-b)); max-width: 640px; margin: 0 auto; }
 
-  nav.tabs { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + var(--safe-b)); z-index: 6;
+  nav.tabs { position: fixed; left: 16px; bottom: calc(14px + var(--safe-b)); z-index: 6;
     display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--border); width: max-content; }
-  nav.tabs button { border: 0; background: transparent; padding: 10px 18px; white-space: nowrap; border-radius: 999px; font-weight: 600; color: var(--muted); }
-  nav.tabs button.on { background: var(--primary); color: #fff; }
+  nav.tabs button { border: 0; background: transparent; padding: 10px 14px; white-space: nowrap; border-radius: 999px; font-weight: 600; color: var(--muted); }
+  nav.tabs button.on { background: var(--primary); color: var(--on-primary); }
   .fab { position: fixed; right: 18px; bottom: calc(14px + var(--safe-b)); z-index: 6; width: 54px; height: 54px; border-radius: 50%; border: 0;
-    background: var(--primary); color: #fff; box-shadow: 0 8px 22px color-mix(in srgb, var(--primary) 45%, transparent); display: grid; place-items: center; }
+    background: var(--primary); color: var(--on-primary); box-shadow: 0 8px 22px rgba(0, 0, 0, .25); display: grid; place-items: center; }
   .fab svg { width: 24px; height: 24px; }
 
   .banner { margin: 6px 0 12px; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--warn-soft); color: var(--warn); font-size: 13px; }
@@ -69,7 +69,7 @@
   .strip .dots i { width: 5px; height: 5px; border-radius: 50%; }
   .strip button.today .num { color: var(--primary); }
   .strip button.sel { background: var(--primary); }
-  .strip button.sel .dow, .strip button.sel .num { color: #fff; }
+  .strip button.sel .dow, .strip button.sel .num { color: var(--on-primary); }
   .strip .sun { color: #e0566b; } .strip .sat { color: #4a83e8; }
 
   /* ---- agenda */
@@ -100,6 +100,7 @@
   .cal-head { display: flex; align-items: center; gap: 8px; margin: 2px 2px 10px; }
   .cal-head h2 { font-size: 18px; margin: 0; flex: 1; }
   .cal-head button { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--surface); font-size: 18px; color: var(--muted); }
+  .cal-head .mode-btn { width: auto; border-radius: 999px; padding: 0 12px; font-size: 13px; font-weight: 600; color: var(--text); }
   .cal-head .today-btn { width: auto; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
   .month { background: var(--surface); border-radius: var(--radius); padding: 8px 4px 6px; }
   .month .dows, .month .week { display: grid; grid-template-columns: repeat(7, 1fr); }
@@ -111,11 +112,53 @@
   .cell.other { opacity: .35; }
   .cell.today .n { background: var(--primary-soft); color: var(--primary); }
   .cell.sel { background: var(--surface-2); }
-  .cell.sel .n { background: var(--primary); color: #fff; }
+  .cell.sel .n { background: var(--primary); color: var(--on-primary); }
   .cell .pill { display: block; font-size: 10px; line-height: 14px; height: 14px; padding: 0 3px; border-radius: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #fff; }
   .cell .pill.light { background: var(--surface-3) !important; color: var(--muted); }
   .cell .more-n { font-size: 10px; color: var(--muted); padding-left: 3px; }
   .sel-day { margin-top: 16px; }
+
+  /* ---- health */
+  .daynav { display: flex; align-items: center; gap: 8px; margin: 2px 2px 12px; }
+  .daynav h2 { flex: 1; text-align: center; font-size: 17px; margin: 0; }
+  .daynav button { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--surface); font-size: 18px; color: var(--muted); }
+  .daynav button:disabled { opacity: .3; }
+  .kcal { background: var(--surface); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .kcal .big { font-size: 30px; font-weight: 800; letter-spacing: -.02em; }
+  .kcal .big small { font-size: 14px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+  .kcal .big.over { color: var(--danger); }
+  .kcal .label { font-size: 12.5px; color: var(--muted); font-weight: 600; }
+  .kcal .bar2 { height: 8px; border-radius: 99px; background: var(--surface-3); margin: 12px 0 10px; overflow: hidden; display: flex; }
+  .kcal .bar2 i { display: block; height: 100%; }
+  .kcal .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; font-size: 12.5px; color: var(--muted); }
+  .kcal .nums b { display: block; color: var(--text); font-size: 15px; }
+  .row-item { display: flex; align-items: center; gap: 10px; padding: 11px 12px; cursor: pointer; }
+  .row-item + .row-item { border-top: 1px solid var(--surface-2); }
+  .row-item .grow { flex: 1; min-width: 0; }
+  .row-item .k { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .row-item.planned .name { color: var(--muted); }
+  .row-item .check { --gc: var(--primary); }
+  .row-item.eaten .check { background: var(--primary); border-color: var(--primary); }
+  .row-item.eaten .check svg { opacity: 1; color: var(--on-primary); }
+  .row-item .ico { width: 30px; height: 30px; border-radius: 9px; background: var(--surface-2); display: grid; place-items: center; font-size: 16px; flex: none; }
+  .section-h { display: flex; align-items: baseline; gap: 6px; font-size: 15px; font-weight: 700; margin: 0 4px 6px; }
+  .section-h small { font-weight: 500; color: var(--muted); font-size: 12.5px; }
+  .hblock { margin-bottom: 16px; }
+
+  /* ---- money */
+  .money-sum .big.income { color: #1f9d68; }
+  .cats { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .cats .c { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; font-size: 13px; }
+  .cats .track { grid-column: 2 / 4; height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; margin-top: -4px; }
+  .cats .track i { display: block; height: 100%; background: var(--primary); border-radius: 99px; }
+  .amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .amt.in { color: #1f9d68; }
+  .catgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .catgrid button { border: 1px solid var(--border); background: var(--surface-2); border-radius: 12px; padding: 8px 2px; font-size: 11.5px; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .catgrid button span { font-size: 18px; }
+  .catgrid button.on { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 1px var(--primary); font-weight: 700; }
+  .input.amount { font-size: 24px; font-weight: 800; text-align: right; }
+  .mode-btn { border: 0; background: var(--surface); border-radius: 999px; padding: 0 12px; height: 34px; font-size: 13px; font-weight: 600; white-space: nowrap; flex: none; }
 
   /* ---- todos */
   .group { margin-bottom: 16px; }
@@ -128,6 +171,7 @@
   .check { flex: none; width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--faint); background: transparent; display: grid; place-items: center; padding: 0; margin-top: 0; }
   .check svg { width: 14px; height: 14px; opacity: 0; color: #fff; }
   .todo.done .check { background: var(--gc, var(--primary)); border-color: var(--gc, var(--primary)); }
+  .todo.done .check svg { color: var(--on-primary); }
   .todo.done .check svg { opacity: 1; }
   .todo.done .title { text-decoration: line-through; color: var(--faint); }
   .todo .title { word-break: break-word; }
@@ -157,11 +201,12 @@
   .switch { appearance: none; width: 46px; height: 28px; border-radius: 999px; background: var(--surface-3); position: relative; transition: background .2s; margin: 0; }
   .switch::after { content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
   .switch:checked { background: var(--primary); }
+  .switch:checked::after { background: var(--on-primary); }
   .switch:checked::after { transform: translateX(18px); }
   .colors { display: flex; gap: 10px; flex-wrap: wrap; }
   .colors button { width: 30px; height: 30px; border-radius: 50%; border: 3px solid transparent; padding: 0; }
   .colors button.on { border-color: var(--surface); box-shadow: 0 0 0 2px var(--text); }
-  .btn { width: 100%; border: 0; border-radius: 14px; padding: 14px; font-weight: 700; font-size: 16px; background: var(--primary); color: #fff; margin-top: 6px; }
+  .btn { width: 100%; border: 0; border-radius: 14px; padding: 14px; font-weight: 700; font-size: 16px; background: var(--primary); color: var(--on-primary); margin-top: 6px; }
   .btn:disabled { opacity: .5; }
   .btn.ghost { background: var(--surface-2); color: var(--text); }
   .btn.danger { background: var(--danger-soft); color: var(--danger); }
@@ -232,11 +277,14 @@
     <section id="p-calendar"></section>
     <section id="p-events" hidden></section>
     <section id="p-todos" hidden></section>
+    <section id="p-health" hidden></section>
+    <section id="p-money" hidden></section>
   </main>
   <nav class="tabs">
-    <button data-tab="calendar" class="on">달력</button>
-    <button data-tab="events">목록</button>
+    <button data-tab="calendar" class="on">일정</button>
     <button data-tab="todos">할 일</button>
+    <button data-tab="health">식단</button>
+    <button data-tab="money">가계부</button>
   </nav>
   <button class="fab" id="b-add" aria-label="추가"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
 </div>
@@ -249,6 +297,10 @@
   <div class="seg" id="kind-seg">
     <button data-kind="event" class="on">일정</button>
     <button data-kind="todo">할 일</button>
+    <button data-kind="meal" hidden>식사</button>
+    <button data-kind="workout" hidden>운동</button>
+    <button data-kind="expense" hidden>지출</button>
+    <button data-kind="income" hidden>수입</button>
   </div>
   <form id="f-event">
     <div class="field"><input class="input title" name="title" placeholder="일정 제목" required /></div>
@@ -290,6 +342,46 @@
     </div>
     <button class="btn" type="submit">할 일 추가</button>
   </form>
+  <form id="f-meal" hidden>
+    <div class="field"><input class="input title" name="name" placeholder="먹은 음식" required /></div>
+    <div class="row2">
+      <div class="field"><label>칼로리 (kcal)</label><input class="input" type="number" name="kcal" inputmode="numeric" min="0" max="20000" placeholder="0" /></div>
+      <div class="field"><label>날짜</label><input class="input" type="date" name="date" required /></div>
+    </div>
+    <div class="field"><label>식사</label>
+      <div class="seg" style="margin:0" id="slot-seg">
+        <button type="button" data-slot="breakfast">아침</button><button type="button" data-slot="lunch">점심</button>
+        <button type="button" data-slot="dinner">저녁</button><button type="button" data-slot="snack">간식</button>
+      </div>
+    </div>
+    <label class="toggle">먹었어요 <input type="checkbox" class="switch" name="eaten" checked /></label>
+    <button class="btn" type="submit" id="meal-submit">추가</button>
+    <button class="btn danger" type="button" id="meal-delete" hidden>삭제</button>
+  </form>
+  <form id="f-money" hidden>
+    <div class="field"><input class="input amount" name="amount" type="text" inputmode="numeric" placeholder="0" required autocomplete="off" /></div>
+    <div class="field"><label>분류</label><div class="catgrid" id="catgrid"></div></div>
+    <div class="row2">
+      <div class="field"><label>날짜</label><input class="input" type="date" name="date" required /></div>
+      <div class="field"><label>메모</label><input class="input" name="note" /></div>
+    </div>
+    <button class="btn" type="submit" id="money-submit">추가</button>
+    <button class="btn danger" type="button" id="money-delete" hidden>삭제</button>
+  </form>
+  <form id="f-workout" hidden>
+    <div class="field"><label>운동</label><select class="input" name="kind" id="w-kind"></select></div>
+    <div class="row2">
+      <div class="field"><label>시간 (분)</label><input class="input" type="number" name="minutes" inputmode="numeric" min="1" max="1440" required /></div>
+      <div class="field"><label>소모 (kcal)</label><input class="input" type="number" name="kcal" inputmode="numeric" min="0" max="20000" /></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>날짜</label><input class="input" type="date" name="date" required /></div>
+      <div class="field"><label>메모</label><input class="input" name="note" /></div>
+    </div>
+    <p class="hint" id="w-hint" style="font-size:12px;color:var(--muted);margin:-4px 2px 8px"></p>
+    <button class="btn" type="submit" id="workout-submit">추가</button>
+    <button class="btn danger" type="button" id="workout-delete" hidden>삭제</button>
+  </form>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -303,6 +395,18 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const CFG_KEY = 'nora.cloud';
 const PALETTE = [0x7c74ff, 0x4aa8ff, 0x34c38f, 0xf5b83d, 0xff8a5c, 0xf2668b, 0xb164e8, 0x22b5bf, 0x7d8597];
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
+const SLOTS = [['breakfast', '아침', '🌅'], ['lunch', '점심', '☀️'], ['dinner', '저녁', '🌙'], ['snack', '간식', '🍪']];
+const EXERCISES = [
+  ['walking', '걷기', 3.5, '🚶'], ['running', '달리기', 9.8, '🏃'], ['cycling', '자전거', 7.5, '🚴'], ['swimming', '수영', 7.0, '🏊'],
+  ['strength', '근력 운동', 5.0, '🏋️'], ['hiit', '인터벌(HIIT)', 8.0, '⚡'], ['yoga', '요가', 2.5, '🧘'], ['pilates', '필라테스', 3.0, '🤸'],
+  ['hiking', '등산', 6.0, '⛰️'], ['dance', '댄스', 5.0, '💃'], ['sports', '구기 운동', 6.5, '🏐'], ['stretching', '스트레칭', 2.3, '🙆'],
+];
+const EX_CATS = [['food', '식비', '🍚'], ['cafe', '카페·간식', '☕'], ['transport', '교통', '🚌'], ['shopping', '쇼핑', '🛍️'], ['housing', '주거', '🏠'], ['bills', '공과금·통신', '🧾'],
+  ['health', '건강', '💊'], ['fun', '여가·취미', '🎮'], ['education', '교육', '📚'], ['travel', '여행', '✈️'], ['gifts', '선물', '🎁'], ['other', '기타', '📎']];
+const IN_CATS = [['salary', '월급', '💼'], ['sidejob', '부업·알바', '💻'], ['commission', '외주·커미션', '🎨'], ['lesson', '강의·레슨', '🧑‍🏫'], ['sales', '판매·굿즈', '🏪'],
+  ['creator', '창작·후원', '💜'], ['allowance', '용돈', '🪙'], ['investment', '이자·투자', '🏦'], ['other_income', '기타 수입', '➕']];
+const catOf = (id) => EX_CATS.find((c) => c[0] === id) ?? IN_CATS.find((c) => c[0] === id) ?? [id, id, '📎'];
+const exOf = (id) => EXERCISES.find((e) => e[0] === id) ?? [id, id, 4, '💪'];
 /** The PC uploads at least every 10 minutes while it runs. */
 const PC_STALE_MS = 16 * 60 * 1000;
 
@@ -324,6 +428,14 @@ let tab = 'calendar';
 let calMonth = todayStr().slice(0, 7);
 let editing = null;      // event being edited ({ id, occurrence, repeats })
 let scope = 'one';
+let healthDay = todayStr();
+let editingHealth = null;  // meal or workout being edited
+let mealSlot = 'lunch';
+let shownHealth = [];
+let moneyMonth = todayStr().slice(0, 7);
+let shownMoney = [];
+let moneyCat = 'food';
+let editingMoney = null;
 let shownEvents = [];    // events in the current render, indexed by data-ev
 let showPast = false;
 let selectedDay = todayStr();
@@ -446,7 +558,9 @@ async function send(kindName, payload) {
 function render() {
   renderHeader();
   shownEvents = [];
-  if (tab === 'calendar') renderCalendar(); else if (tab === 'events') renderEvents(); else renderTodos();
+  shownHealth = [];
+  shownMoney = [];
+  ({ calendar: renderCalendar, events: renderEvents, todos: renderTodos, health: renderHealth, money: renderMoney })[tab]();
 }
 
 function ago(ms) {
@@ -459,7 +573,7 @@ function ago(ms) {
 }
 
 function renderHeader() {
-  $('#h-title').textContent = { calendar: '달력', events: '일정', todos: '할 일' }[tab];
+  $('#h-title').textContent = { calendar: '일정', events: '일정', todos: '할 일', health: '식단·운동', money: '가계부' }[tab];
   const banner = $('#banner');
   if (!snapshot) {
     $('#h-sync').textContent = 'PC에서 아직 올린 내용이 없어요';
@@ -474,7 +588,7 @@ function renderHeader() {
   if (Date.now() - at > PC_STALE_MS) {
     html += `<div class="banner">PC 앱이 꺼져 있는 것 같아요.${waiting ? ` 보낸 ${waiting}건은 PC를 켜면 반영돼요.` : ''}</div>`;
   }
-  for (const f of failed) html += `<div class="banner error">“${esc(f.payload?.title ?? '요청')}” 반영 실패: ${esc(f.error)}</div>`;
+  for (const f of failed) html += `<div class="banner error">“${esc(f.payload?.title ?? f.payload?.name ?? '요청')}” 반영 실패: ${esc(f.error)}</div>`;
   banner.innerHTML = html;
 }
 
@@ -517,6 +631,22 @@ function allEvents() {
   return list;
 }
 
+/** Meals or workouts with the phone's unapplied saves and deletes on top. */
+function healthList(key, saveKind, deleteKind, source = snapshot?.health) {
+  let list = (source?.[key] ?? []).map((x) => ({ ...x }));
+  for (const r of pending()) {
+    if (r.error) continue;
+    const p = r.payload;
+    if (r.kind === deleteKind) list = list.filter((x) => x.id !== p.id);
+    else if (r.kind === saveKind) {
+      const item = { ...p, pending: !r.applied_at };
+      if (p.id) list = list.map((x) => (x.id === p.id ? item : x));
+      else list.push({ ...item, id: 'p' + r.id });
+    }
+  }
+  return list;
+}
+
 function todoDone(t) {
   let done = t.done;
   for (const r of pending()) if (r.kind === 'set_todo_done' && r.payload.id === t.id && !r.error) done = r.payload.done;
@@ -547,6 +677,7 @@ function renderCalendar() {
   const first = new Date(y, m - 1, 1);
   let d = addDays(ymd(first), -first.getDay());
   let html = `<div class="cal-head"><h2>${y}년 ${m}월</h2>
+    <button class="mode-btn" data-go="events">목록</button>
     <button class="today-btn" data-cal="today">오늘</button>
     <button data-cal="-1" aria-label="이전 달">‹</button><button data-cal="1" aria-label="다음 달">›</button></div>`;
   html += '<div class="month"><div class="dows">' + DOW.map((x) => `<span>${x}</span>`).join('') + '</div>';
@@ -598,7 +729,8 @@ function renderEvents() {
   }
   strip += '</div>';
 
-  let html = showPast ? '<button class="more" data-act="hide-past">지난 일정 숨기기</button>' : '';
+  let html = `<div class="cal-head"><h2>다가오는 일정</h2><button class="mode-btn" data-go="calendar">달력</button></div>`;
+  if (showPast) html += '<button class="more" data-act="hide-past">지난 일정 숨기기</button>';
   const days = [...byDay.keys()].filter((d) => d >= first && d <= last).sort();
   for (const d of days) {
     const items = byDay.get(d);
@@ -607,7 +739,7 @@ function renderEvents() {
     html += `<div class="day ${d === today ? 'is-today' : ''}" id="d-${d}"><h3><b>${date.getMonth() + 1}월 ${date.getDate()}일</b>${DOW[date.getDay()]}요일${rel ? ' · ' + rel : ''}</h3>${dayCard(d, items)}</div>`;
   }
   if (!days.length) html += `<div class="empty">${snapshot ? '다가오는 일정이 없어요' : ''}</div>`;
-  el.innerHTML = strip + html;
+  el.innerHTML = html.replace('</div>', '</div>' + strip);
 }
 
 function sortKey(it, d) {
@@ -661,6 +793,110 @@ function renderTodos() {
   el.innerHTML = html;
 }
 
+const fmt = (n) => new Intl.NumberFormat('ko-KR').format(Math.round(n));
+
+function renderHealth() {
+  const el = $('#p-health');
+  const h = snapshot?.health;
+  if (!h) { el.innerHTML = `<div class="empty">${snapshot ? 'PC 앱을 업데이트하면 식단·운동이 나타나요' : ''}</div>`; return; }
+  const today = todayStr();
+  const minDay = addDays(today, -14), maxDay = addDays(today, 14);
+  const meals = healthList('meals', 'save_meal', 'delete_meal').filter((m) => m.date === healthDay);
+  const workouts = healthList('workouts', 'save_workout', 'delete_workout').filter((w) => w.date === healthDay);
+  const eaten = meals.filter((m) => m.eaten).reduce((a, m) => a + Number(m.kcal), 0);
+  const planned = meals.filter((m) => !m.eaten).reduce((a, m) => a + Number(m.kcal), 0);
+  const burned = workouts.reduce((a, w) => a + Number(w.kcal), 0);
+  const left = h.goal - eaten + burned;
+  const budget = Math.max(h.goal + burned, 1);
+  const date = parseYmd(healthDay);
+  const rel = healthDay === today ? ' · 오늘' : healthDay === addDays(today, -1) ? ' · 어제' : healthDay === addDays(today, 1) ? ' · 내일' : '';
+  let html = `<div class="daynav"><button data-hday="-1" ${healthDay <= minDay ? 'disabled' : ''}>‹</button>
+    <h2>${date.getMonth() + 1}월 ${date.getDate()}일 ${DOW[date.getDay()]}${rel}</h2>
+    <button data-hday="1" ${healthDay >= maxDay ? 'disabled' : ''}>›</button></div>`;
+  html += `<div class="kcal"><div class="label">${left >= 0 ? '오늘 더 먹을 수 있어요' : '목표보다 많이 먹었어요'}</div>
+    <div class="big ${left < 0 ? 'over' : ''}">${fmt(Math.abs(left))}<small>kcal</small></div>
+    <div class="bar2"><i style="width:${Math.min(100, (eaten / budget) * 100)}%;background:var(--primary)"></i><i style="width:${Math.max(0, Math.min(100 - (eaten / budget) * 100, (planned / budget) * 100))}%;background:var(--faint)"></i></div>
+    <div class="nums"><div>먹음<b>${fmt(eaten)}</b></div><div>예정<b>${fmt(planned)}</b></div><div>운동<b>−${fmt(burned)}</b></div></div>
+    ${planned ? `<div class="label" style="margin-top:10px">예정까지 다 먹으면 ${planned > left ? `<b style="color:var(--danger)">${fmt(planned - left)} kcal 넘쳐요</b>` : `${fmt(left - planned)} kcal 남아요`}</div>` : ''}
+    <div class="label" style="margin-top:6px">목표 ${fmt(h.goal)} kcal · 체중 ${h.weight} kg (PC 설정)</div></div>`;
+  for (const [id, label, icon] of SLOTS) {
+    const list = meals.filter((m) => m.slot === id);
+    const sum = list.reduce((a, m) => a + Number(m.kcal), 0);
+    html += `<div class="hblock"><div class="section-h">${icon} ${label} ${list.length ? `<small>${fmt(sum)} kcal</small>` : ''}</div><div class="card">`;
+    html += list.length ? list.map((m) => {
+      const idx = shownHealth.push({ type: 'meal', ...m }) - 1;
+      const chip = m.pending ? '<span class="chip">PC 반영 대기</span>' : m.eaten ? '' : '<span class="chip">예정</span>';
+      return `<div class="row-item ${m.eaten ? 'eaten' : 'planned'}" data-h="${idx}">
+        <button class="check" data-eat="${idx}" aria-label="먹었어요"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+        <div class="grow"><div class="name">${esc(m.name)}${chip}</div></div><span class="k">${fmt(m.kcal)} kcal</span></div>`;
+    }).join('') : `<div class="row-item" data-addmeal="${id}"><span class="k">+ ${label} 추가</span></div>`;
+    html += '</div></div>';
+  }
+  html += `<div class="hblock"><div class="section-h">🏃 운동 ${workouts.length ? `<small>${fmt(workouts.reduce((a, w) => a + Number(w.minutes), 0))}분 · ${fmt(burned)} kcal</small>` : ''}</div><div class="card">`;
+  html += workouts.length ? workouts.map((w) => {
+    const idx = shownHealth.push({ type: 'workout', ...w }) - 1;
+    const [, label, , icon] = exOf(w.kind);
+    return `<div class="row-item" data-h="${idx}"><span class="ico">${icon}</span>
+      <div class="grow"><div class="name">${esc(label)}${w.pending ? '<span class="chip">PC 반영 대기</span>' : ''}</div>${w.note ? `<div class="k">${esc(w.note)}</div>` : ''}</div>
+      <span class="k">${w.minutes}분 · ${fmt(w.kcal)} kcal</span></div>`;
+  }).join('') : '<div class="row-item" data-addworkout="1"><span class="k">+ 운동 추가</span></div>';
+  html += '</div></div>';
+  el.innerHTML = html;
+}
+
+function money(n) {
+  const cur = snapshot?.money?.currency || 'KRW';
+  const dec = ['KRW', 'JPY'].includes(cur) ? 0 : 2;
+  try { return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: cur, minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n); }
+  catch { return fmt(n); }
+}
+
+function renderMoney() {
+  const el = $('#p-money');
+  const m = snapshot?.money;
+  if (!m) { el.innerHTML = `<div class="empty">${snapshot ? 'PC 앱을 업데이트하면 가계부가 나타나요' : ''}</div>`; return; }
+  const today = todayStr();
+  const all = healthList.call(null, 'expenses', 'save_expense', 'delete_expense', m);
+  const list = all.filter((x) => x.date.slice(0, 7) === moneyMonth).sort((a, b) => b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id)));
+  const spent = list.filter((x) => x.kind !== 'income').reduce((a, x) => a + Number(x.amount), 0);
+  const income = list.filter((x) => x.kind === 'income').reduce((a, x) => a + Number(x.amount), 0);
+  const [y, mo] = moneyMonth.split('-').map(Number);
+  const minMonth = m.from_month || addDays(today.slice(0, 7) + '-01', -1).slice(0, 7);
+  const maxMonth = addDays(today, 31).slice(0, 7);
+  let html = `<div class="daynav"><button data-mm="-1" ${moneyMonth <= minMonth ? 'disabled' : ''}>‹</button><h2>${y}년 ${mo}월</h2><button data-mm="1" ${moneyMonth >= maxMonth ? 'disabled' : ''}>›</button></div>`;
+  html += `<div class="kcal money-sum"><div class="label">지출</div><div class="big">${money(spent)}</div>`;
+  if (m.budget && moneyMonth === today.slice(0, 7)) {
+    const left = m.budget - spent;
+    html += `<div class="bar2"><i style="width:${Math.min(100, (spent / m.budget) * 100)}%;background:${left < 0 ? 'var(--danger)' : 'var(--primary)'}"></i></div>
+      <div class="label">${left >= 0 ? `예산 ${money(m.budget)} 중 <b style="color:var(--text)">${money(left)}</b> 남았어요` : `예산보다 <b style="color:var(--danger)">${money(-left)}</b> 더 썼어요`}</div>`;
+  }
+  html += `<div class="nums" style="margin-top:12px;grid-template-columns:1fr 1fr"><div>수입<b class="amt in">+${money(income)}</b></div><div>수입 − 지출<b>${money(income - spent)}</b></div></div>`;
+  const byCat = new Map();
+  for (const x of list) if (x.kind !== 'income') byCat.set(x.category, (byCat.get(x.category) ?? 0) + Number(x.amount));
+  const top = [...byCat].sort((a, b) => b[1] - a[1]).slice(0, 5);
+  if (top.length) {
+    html += '<div class="cats">' + top.map(([c, v]) => { const [, label, icon] = catOf(c); return `<div class="c"><span>${icon}</span><span>${label}</span><span class="amt">${money(v)}</span><div class="track"><i style="width:${(v / top[0][1]) * 100}%"></i></div></div>`; }).join('') + '</div>';
+  }
+  html += '</div>';
+  let day = '';
+  for (const x of list) {
+    if (x.date !== day) {
+      if (day) html += '</div></div>';
+      day = x.date;
+      const d = parseYmd(day);
+      const sumDay = list.filter((z) => z.date === day && z.kind !== 'income').reduce((a, z) => a + Number(z.amount), 0);
+      html += `<div class="hblock"><div class="section-h">${d.getMonth() + 1}월 ${d.getDate()}일 ${DOW[d.getDay()]}${day === today ? ' · 오늘' : ''} ${sumDay ? `<small>−${money(sumDay)}</small>` : ''}</div><div class="card">`;
+    }
+    const idx = shownMoney.push(x) - 1;
+    const [, label, icon] = catOf(x.category);
+    const inc = x.kind === 'income';
+    html += `<div class="row-item" data-m="${idx}"><span class="ico">${icon}</span><div class="grow"><div class="name">${esc(x.note || label)}${x.pending ? '<span class="chip">PC 반영 대기</span>' : ''}</div>${x.note ? `<div class="k">${label}</div>` : ''}</div><span class="amt ${inc ? 'in' : ''}">${inc ? '+' : '−'}${money(x.amount)}</span></div>`;
+  }
+  if (day) html += '</div></div>';
+  if (!list.length) html += '<div class="empty">이 달 기록이 없어요. + 로 추가할 수 있어요.</div>';
+  el.innerHTML = html;
+}
+
 function todoRow(t, g, today, sub = false) {
   let due = '';
   if (t.due) {
@@ -678,15 +914,16 @@ function todoRow(t, g, today, sub = false) {
 // ---------------------------------------------------------------------------
 // Interaction
 
-document.querySelectorAll('nav.tabs button').forEach((b) => (b.onclick = () => {
-  tab = b.dataset.tab;
-  document.querySelectorAll('nav.tabs button').forEach((x) => x.classList.toggle('on', x === b));
-  $('#p-calendar').hidden = tab !== 'calendar';
-  $('#p-events').hidden = tab !== 'events';
-  $('#p-todos').hidden = tab !== 'todos';
+function goTab(t) {
+  tab = t;
+  const navTab = t === 'events' ? 'calendar' : t;
+  document.querySelectorAll('nav.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === navTab));
+  for (const id of ['calendar', 'events', 'todos', 'health', 'money']) $('#p-' + id).hidden = id !== t;
   window.scrollTo({ top: 0 });
   render();
-}));
+}
+document.querySelectorAll('nav.tabs button').forEach((b) => (b.onclick = () => goTab(b.dataset.tab)));
+document.addEventListener('click', (e) => { const g = e.target.closest('[data-go]'); if (g) goTab(g.dataset.go); });
 
 function onEventTap(e) {
   const row = e.target.closest('[data-ev]');
@@ -736,10 +973,49 @@ $('#p-todos').addEventListener('click', async (e) => {
   await send('set_todo_done', { id: Number(b.dataset.todo), done: b.dataset.done !== '1' });
 });
 
+$('#p-health').addEventListener('click', async (e) => {
+  const nav = e.target.closest('[data-hday]');
+  if (nav) { healthDay = addDays(healthDay, Number(nav.dataset.hday)); return renderHealth(); }
+  const eat = e.target.closest('[data-eat]');
+  if (eat) {
+    e.stopPropagation();
+    const m = shownHealth[Number(eat.dataset.eat)];
+    if (typeof m.id !== 'number') return toast('PC에 반영된 뒤에 바꿀 수 있어요');
+    eat.disabled = true;
+    if (navigator.vibrate) navigator.vibrate(8);
+    const { type, pending: _p, ...meal } = m;
+    return send('save_meal', { ...meal, eaten: !m.eaten });
+  }
+  const row = e.target.closest('[data-h]');
+  if (row) {
+    const item = shownHealth[Number(row.dataset.h)];
+    if (typeof item.id !== 'number') return toast('PC에 반영된 뒤에 바꿀 수 있어요');
+    return openHealthSheet(item.type, item);
+  }
+  const addMeal = e.target.closest('[data-addmeal]');
+  if (addMeal) return openHealthSheet('meal', null, addMeal.dataset.addmeal);
+  if (e.target.closest('[data-addworkout]')) return openHealthSheet('workout');
+});
+
+$('#p-money').addEventListener('click', (e) => {
+  const nav = e.target.closest('[data-mm]');
+  if (nav) {
+    const [y, m] = moneyMonth.split('-').map(Number);
+    moneyMonth = ymd(new Date(y, m - 1 + Number(nav.dataset.mm), 1)).slice(0, 7);
+    return renderMoney();
+  }
+  const row = e.target.closest('[data-m]');
+  if (row) {
+    const x = shownMoney[Number(row.dataset.m)];
+    if (typeof x.id !== 'number') return toast('PC에 반영된 뒤에 바꿀 수 있어요');
+    openMoneySheet(x.kind, x);
+  }
+});
+
 $('#b-refresh').onclick = () => load();
 $('#b-menu').onclick = (e) => { e.stopPropagation(); $('#menu').hidden = !$('#menu').hidden; };
 document.addEventListener('click', (e) => { if (!e.target.closest('#menu')) $('#menu').hidden = true; });
-$('#m-past').onclick = () => { showPast = true; tab = 'events'; document.querySelector('nav.tabs [data-tab="events"]').click(); };
+$('#m-past').onclick = () => { showPast = true; goTab('events'); };
 $('#m-logout').onclick = async () => { await sb.auth.signOut(); channel = null; user = null; boot(); };
 $('#m-reset').onclick = async () => {
   if (!confirm('이 휴대폰에 저장된 연결 정보를 지울까요?')) return;
@@ -759,14 +1035,19 @@ $('#colors').onclick = (e) => {
 };
 function syncColors() { document.querySelectorAll('#colors button').forEach((b) => b.classList.toggle('on', Number(b.dataset.color) === color)); }
 
+const FORMS = { event: '#f-event', todo: '#f-todo', meal: '#f-meal', workout: '#f-workout', expense: '#f-money', income: '#f-money' };
 function setKind(k) {
   kind = k;
-  document.querySelectorAll('.seg button').forEach((b) => b.classList.toggle('on', b.dataset.kind === k));
-  $('#f-event').hidden = k !== 'event';
-  $('#f-todo').hidden = k !== 'todo';
-  setTimeout(() => (k === 'event' ? $('#f-event') : $('#f-todo')).title.focus(), 260);
+  document.querySelectorAll('#kind-seg button').forEach((b) => b.classList.toggle('on', b.dataset.kind === k));
+  for (const sel of new Set(Object.values(FORMS))) $(sel).hidden = sel !== FORMS[k];
+  if (k === 'expense' || k === 'income') drawCats();
+  const focus = { event: '#f-event [name=title]', todo: '#f-todo [name=title]', meal: '#f-meal [name=name]', workout: null }[k];
+  if (focus && !editingHealth && !editing) setTimeout(() => $(focus).focus(), 260);
 }
-document.querySelectorAll('.seg button').forEach((b) => (b.onclick = () => setKind(b.dataset.kind)));
+function showKinds(kinds) {
+  document.querySelectorAll('#kind-seg button').forEach((b) => (b.hidden = !kinds.includes(b.dataset.kind)));
+}
+document.querySelectorAll('#kind-seg button').forEach((b) => (b.onclick = () => setKind(b.dataset.kind)));
 
 function setScope(s) {
   scope = s;
@@ -774,7 +1055,142 @@ function setScope(s) {
 }
 document.querySelectorAll('[data-scope]').forEach((b) => (b.onclick = () => setScope(b.dataset.scope)));
 
+function showSheet() {
+  $('#scrim').hidden = false;
+  $('#sheet').hidden = false;
+  requestAnimationFrame(() => { $('#scrim').classList.add('open'); $('#sheet').classList.add('open'); });
+}
+
+// ---- money sheet
+function drawCats() {
+  const cats = kind === 'income' ? IN_CATS : EX_CATS;
+  if (!cats.some((c) => c[0] === moneyCat)) moneyCat = cats[0][0];
+  $('#catgrid').innerHTML = cats.map(([id, label, icon]) => `<button type="button" data-cat="${id}" class="${id === moneyCat ? 'on' : ''}"><span>${icon}</span>${label}</button>`).join('');
+  $('#money-submit').textContent = editingMoney ? '저장' : kind === 'income' ? '수입 추가' : '지출 추가';
+}
+$('#catgrid').onclick = (e) => { const b = e.target.closest('[data-cat]'); if (b) { moneyCat = b.dataset.cat; drawCats(); } };
+const amountInput = $('#f-money').amount;
+amountInput.addEventListener('input', () => {
+  const digits = amountInput.value.replace(/[^0-9.]/g, '');
+  const [i, d] = digits.split('.');
+  amountInput.value = (i ? Number(i).toLocaleString('ko-KR') : '') + (d !== undefined ? '.' + d.slice(0, 2) : '');
+});
+
+function openMoneySheet(k = 'expense', item = null) {
+  editing = null; editingHealth = null;
+  editingMoney = item;
+  $('#sheet-title').hidden = !item;
+  $('#sheet-title').textContent = k === 'income' ? '수입 수정' : '지출 수정';
+  $('#kind-seg').hidden = false;
+  showKinds(['expense', 'income']);
+  const f = $('#f-money');
+  f.reset();
+  f.date.value = item?.date ?? (moneyMonth === todayStr().slice(0, 7) ? todayStr() : moneyMonth + '-01');
+  if (item) { amountInput.value = Number(item.amount).toLocaleString('ko-KR'); f.note.value = item.note || ''; moneyCat = item.category; }
+  else moneyCat = k === 'income' ? 'salary' : 'food';
+  $('#money-delete').hidden = !item;
+  setKind(k);
+  showSheet();
+  if (!item) setTimeout(() => amountInput.focus(), 260);
+}
+
+$('#f-money').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const amount = Number(amountInput.value.replace(/,/g, ''));
+  if (!(amount > 0)) return toast('금액을 입력해 주세요');
+  const payload = { id: editingMoney?.id ?? 0, amount, category: moneyCat, date: f.date.value, note: f.note.value.trim(), kind: kind === 'income' ? 'income' : 'expense' };
+  const ok = await send('save_expense', payload);
+  if (ok) { moneyMonth = payload.date.slice(0, 7); closeSheet(); toast(editingMoney ? '수정 내용을 보냈어요' : '가계부에 보냈어요'); }
+};
+$('#money-delete').onclick = async () => {
+  if (!editingMoney || !confirm('이 기록을 삭제할까요?')) return;
+  if (await send('delete_expense', { id: editingMoney.id, title: editingMoney.note || catOf(editingMoney.category)[1] })) { closeSheet(); toast('삭제 요청을 보냈어요'); }
+};
+
+// ---- meals & workouts sheet
+$('#w-kind').innerHTML = EXERCISES.map(([id, label, , icon]) => `<option value="${id}">${icon} ${label}</option>`).join('');
+let kcalTouched = false;
+function estimate() {
+  const f = $('#f-workout');
+  const w = Number(snapshot?.health?.weight) || 60;
+  const min = Number(f.minutes.value) || 0;
+  const est = Math.round((exOf(f.kind.value)[2] * w * min) / 60);
+  if (!kcalTouched) f.kcal.value = min ? est : '';
+  $('#w-hint').textContent = min ? `예상 소모 ${fmt(est)} kcal (체중 ${w}kg 기준)` : '';
+}
+$('#f-workout').kind.onchange = estimate;
+$('#f-workout').minutes.oninput = estimate;
+$('#f-workout').kcal.oninput = () => { kcalTouched = true; };
+
+function setSlot(id) {
+  mealSlot = id;
+  document.querySelectorAll('[data-slot]').forEach((b) => b.classList.toggle('on', b.dataset.slot === id));
+}
+document.querySelectorAll('[data-slot]').forEach((b) => (b.onclick = () => setSlot(b.dataset.slot)));
+const slotForNow = () => { const h = new Date().getHours(); return h < 11 ? 'breakfast' : h < 16 ? 'lunch' : h < 21 ? 'dinner' : 'snack'; };
+
+function openHealthSheet(k, item = null, slot = null) {
+  editing = null; editingMoney = null;
+  editingHealth = item;
+  $('#sheet-title').hidden = !item;
+  $('#sheet-title').textContent = k === 'meal' ? '식사 수정' : '운동 수정';
+  $('#kind-seg').hidden = !!item;
+  showKinds(['meal', 'workout']);
+  const m = $('#f-meal');
+  m.reset();
+  m.date.value = item?.date ?? healthDay;
+  setSlot(item?.slot ?? slot ?? (healthDay === todayStr() ? slotForNow() : 'lunch'));
+  if (k === 'meal' && item) { m.name.value = item.name; m.kcal.value = item.kcal; m.eaten.checked = !!item.eaten; }
+  else m.eaten.checked = healthDay <= todayStr();
+  $('#meal-submit').textContent = item && k === 'meal' ? '저장' : '식사 추가';
+  $('#meal-delete').hidden = !(item && k === 'meal');
+  const w = $('#f-workout');
+  w.reset();
+  w.date.value = item?.date ?? healthDay;
+  kcalTouched = !!(item && k === 'workout');
+  if (k === 'workout' && item) { w.kind.value = item.kind; w.minutes.value = item.minutes; w.kcal.value = item.kcal; w.note.value = item.note || ''; }
+  else { w.minutes.value = 30; }
+  estimate();
+  $('#workout-submit').textContent = item && k === 'workout' ? '저장' : '운동 추가';
+  $('#workout-delete').hidden = !(item && k === 'workout');
+  setKind(k);
+  showSheet();
+}
+
+$('#f-meal').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const name = f.name.value.trim();
+  if (!name) return;
+  const kcal = Math.max(0, Math.min(20000, Math.round(Number(f.kcal.value) || 0)));
+  const payload = { id: editingHealth?.id ?? 0, date: f.date.value, slot: mealSlot, name, kcal, eaten: f.eaten.checked };
+  const ok = await send('save_meal', payload);
+  if (ok) { healthDay = payload.date; closeSheet(); toast(editingHealth ? '수정 내용을 보냈어요' : '식사를 보냈어요'); }
+};
+$('#f-workout').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const minutes = Math.round(Number(f.minutes.value) || 0);
+  if (minutes < 1 || minutes > 1440) return toast('운동 시간을 확인해 주세요');
+  const payload = { id: editingHealth?.id ?? 0, date: f.date.value, kind: f.kind.value, minutes, kcal: Math.max(0, Math.min(20000, Math.round(Number(f.kcal.value) || 0))), note: f.note.value.trim() };
+  const ok = await send('save_workout', payload);
+  if (ok) { healthDay = payload.date; closeSheet(); toast(editingHealth ? '수정 내용을 보냈어요' : '운동을 보냈어요'); }
+};
+$('#meal-delete').onclick = async () => {
+  if (!editingHealth || !confirm('이 식사를 삭제할까요?')) return;
+  if (await send('delete_meal', { id: editingHealth.id, title: editingHealth.name })) { closeSheet(); toast('삭제 요청을 보냈어요'); }
+};
+$('#workout-delete').onclick = async () => {
+  if (!editingHealth || !confirm('이 운동 기록을 삭제할까요?')) return;
+  if (await send('delete_workout', { id: editingHealth.id, title: exOf(editingHealth.kind)[1] })) { closeSheet(); toast('삭제 요청을 보냈어요'); }
+};
+
 function openSheet(ev = null) {
+  if (tab === 'health' && !ev) return openHealthSheet('meal');
+  if (tab === 'money' && !ev) return openMoneySheet('expense');
+  editingHealth = null; editingMoney = null;
+  showKinds(['event', 'todo']);
   const f = $('#f-event');
   f.reset();
   editing = ev ? { id: ev.id, occurrence: ev.occurrence ?? null, repeats: !!ev.repeats } : null;
@@ -814,10 +1230,9 @@ function openSheet(ev = null) {
   const t = $('#f-todo');
   t.reset();
   $('#t-group').innerHTML = '<option value="">그룹 없음</option>' + (snapshot?.todo_groups ?? []).map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
+  $('#sheet-title').textContent = '일정 수정';
   setKind(ev || tab !== 'todos' ? 'event' : 'todo');
-  $('#scrim').hidden = false;
-  $('#sheet').hidden = false;
-  requestAnimationFrame(() => { $('#scrim').classList.add('open'); $('#sheet').classList.add('open'); });
+  showSheet();
 }
 function closeSheet() {
   $('#scrim').classList.remove('open');

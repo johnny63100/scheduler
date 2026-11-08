@@ -12,12 +12,14 @@
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant};
 
-use chrono::{Local, NaiveDate, NaiveDateTime, NaiveTime};
+use chrono::{Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use tauri::{AppHandle, Emitter, Listener};
 
 use crate::db::{self, Db, Event, Scope};
+use crate::expenses::Expense;
+use crate::health::{self, Meal, Workout};
 
 pub const KEY_URL: &str = "cloud.url";
 pub const KEY_ANON: &str = "cloud.anonKey";
@@ -37,6 +39,8 @@ const SETTLE: Duration = Duration::from_millis(1500);
 /// Events in the snapshot: this many days back and ahead of today.
 const DAYS_BACK: i64 = 62;
 const DAYS_AHEAD: i64 = 185;
+/// Meals and workouts in the snapshot: this many days around today.
+const HEALTH_DAYS: i64 = 14;
 /// Finished todos stay visible on the phone for this many days.
 const DONE_KEEP_DAYS: i64 = 3;
 const DEFAULT_COLOR: u32 = 0x7c74ff;
@@ -320,8 +324,25 @@ fn snapshot(db: &Db) -> db::DbResult<Value> {
         .into_iter()
         .map(|g| json!({ "id": g.id, "name": g.name, "color": g.color }))
         .collect();
+    let (hfrom, hto) = (today - chrono::Duration::days(HEALTH_DAYS), today + chrono::Duration::days(HEALTH_DAYS));
+    let health = json!({
+        "goal": db.setting_or("health.goal", 2000i64),
+        "weight": db.setting_or("health.weight", 60f64),
+        "meals": db.meals_between(hfrom, hto)?,
+        "workouts": db.workouts_between(hfrom, hto)?,
+    });
+    // Money book: from the first day of last month to a month ahead (planned payments).
+    let this_month = today.with_day(1).unwrap_or(today);
+    let mfrom = (this_month - chrono::Duration::days(1)).with_day(1).unwrap_or(this_month);
+    let money = json!({
+        "currency": db.setting("expense.currency")?.filter(|c| !c.is_empty()).unwrap_or_else(|| "KRW".into()),
+        "budget": db.setting("expense.budget")?.and_then(|b| b.parse::<f64>().ok()).filter(|b| *b > 0.0),
+        "expenses": db.expenses_between(mfrom, today + chrono::Duration::days(31))?,
+    });
     Ok(json!({
         "version": 1,
+        "health": health,
+        "money": money,
         "generated_at": chrono::Utc::now().to_rfc3339(),
         "today": today,
         "from": from,
@@ -387,6 +408,11 @@ struct NewTodo {
     group_id: Option<i64>,
     due: Option<NaiveDate>,
     due_time: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct ById {
+    id: i64,
 }
 
 #[derive(Deserialize)]
@@ -523,6 +549,47 @@ fn apply(db: &Db, item: &InboxItem) -> Result<(), String> {
         "set_todo_done" => {
             let n: TodoDone = parse(&item.payload)?;
             db.set_todo_done(n.id, n.done).map_err(|e| e.to_string())
+        }
+        "save_meal" => {
+            let m: Meal = parse(&item.payload)?;
+            let name = m.name.trim();
+            if name.is_empty() {
+                return Err("음식 이름이 비어 있어요".into());
+            }
+            if !Meal::SLOTS.contains(&m.slot.as_str()) || !(0..=health::MAX_KCAL).contains(&m.kcal) {
+                return Err("식사 정보가 올바르지 않아요".into());
+            }
+            db.save_meal(&Meal { name: name.into(), ..m }).map(|_| ()).map_err(|e| e.to_string())
+        }
+        "delete_meal" => {
+            let r: ById = parse(&item.payload)?;
+            db.delete_meal(r.id).map(|_| ()).map_err(|e| e.to_string())
+        }
+        "save_workout" => {
+            let w: Workout = parse(&item.payload)?;
+            if w.kind.trim().is_empty() || !(1..=health::MAX_MINUTES).contains(&w.minutes) || !(0..=health::MAX_KCAL).contains(&w.kcal) {
+                return Err("운동 정보가 올바르지 않아요".into());
+            }
+            db.save_workout(&Workout { note: w.note.trim().into(), ..w }).map(|_| ()).map_err(|e| e.to_string())
+        }
+        "delete_workout" => {
+            let r: ById = parse(&item.payload)?;
+            db.delete_workout(r.id).map(|_| ()).map_err(|e| e.to_string())
+        }
+        "save_expense" => {
+            let mut x: Expense = parse(&item.payload)?;
+            if !x.amount.is_finite() || x.amount <= 0.0 || x.amount > 1e12 {
+                return Err("금액을 확인해 주세요".into());
+            }
+            if !Expense::KINDS.contains(&x.kind.as_str()) || x.category.trim().is_empty() {
+                return Err("가계부 항목이 올바르지 않아요".into());
+            }
+            x.note = x.note.trim().into();
+            db.save_expense(&x).map(|_| ()).map_err(|e| e.to_string())
+        }
+        "delete_expense" => {
+            let r: ById = parse(&item.payload)?;
+            db.delete_expense(r.id).map(|_| ()).map_err(|e| e.to_string())
         }
         other => Err(format!("알 수 없는 요청: {other}")),
     }
@@ -670,5 +737,48 @@ mod tests {
         assert_eq!(on(day2).len(), 1);
         assert_eq!(on(day2)[0]["title"], "하루만");
         assert!(on(day3).is_empty());
+    }
+
+    #[test]
+    fn phone_logs_meals_and_workouts() {
+        let db = temp_db();
+        let today = Local::now().date_naive();
+        apply(&db, &item("save_meal", json!({ "id": 0, "date": today, "slot": "lunch", "name": "제육", "kcal": 750, "eaten": false }))).unwrap();
+        assert!(apply(&db, &item("save_meal", json!({ "id": 0, "date": today, "slot": "brunch", "name": "x", "kcal": 1, "eaten": true }))).is_err());
+        let meal = snapshot(&db).unwrap()["health"]["meals"][0].clone();
+        assert_eq!(meal["name"], "제육");
+        let id = meal["id"].as_i64().unwrap();
+        apply(&db, &item("save_meal", json!({ "id": id, "date": today, "slot": "lunch", "name": "제육", "kcal": 750, "eaten": true }))).unwrap();
+        assert_eq!(snapshot(&db).unwrap()["health"]["meals"][0]["eaten"], true);
+        apply(&db, &item("save_workout", json!({ "id": 0, "date": today, "kind": "walking", "minutes": 40, "kcal": 140, "note": "" }))).unwrap();
+        assert!(apply(&db, &item("save_workout", json!({ "id": 0, "date": today, "kind": "walking", "minutes": 0, "kcal": 0, "note": "" }))).is_err());
+        let snap = snapshot(&db).unwrap();
+        assert_eq!(snap["health"]["workouts"][0]["minutes"], 40);
+        assert_eq!(snap["health"]["goal"], 2000);
+        apply(&db, &item("delete_meal", json!({ "id": id }))).unwrap();
+        let wid = snap["health"]["workouts"][0]["id"].as_i64().unwrap();
+        apply(&db, &item("delete_workout", json!({ "id": wid }))).unwrap();
+        let snap = snapshot(&db).unwrap();
+        assert!(snap["health"]["meals"].as_array().unwrap().is_empty());
+        assert!(snap["health"]["workouts"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn phone_keeps_the_money_book() {
+        let db = temp_db();
+        let today = Local::now().date_naive();
+        apply(&db, &item("save_expense", json!({ "id": 0, "amount": 4500, "category": "cafe", "date": today, "note": "라떼", "kind": "expense" }))).unwrap();
+        apply(&db, &item("save_expense", json!({ "id": 0, "amount": 300000, "category": "commission", "date": today, "note": "", "kind": "income" }))).unwrap();
+        assert!(apply(&db, &item("save_expense", json!({ "id": 0, "amount": 0, "category": "food", "date": today, "note": "", "kind": "expense" }))).is_err());
+        assert!(apply(&db, &item("save_expense", json!({ "id": 0, "amount": 10, "category": "food", "date": today, "note": "", "kind": "gift" }))).is_err());
+        let snap = snapshot(&db).unwrap();
+        assert_eq!(snap["money"]["currency"], "KRW");
+        let list = snap["money"]["expenses"].as_array().unwrap();
+        assert_eq!(list.len(), 2);
+        let latte = list.iter().find(|x| x["note"] == "라떼").unwrap();
+        let id = latte["id"].as_i64().unwrap();
+        apply(&db, &item("save_expense", json!({ "id": id, "amount": 5000, "category": "cafe", "date": today, "note": "라떼 큰거", "kind": "expense" }))).unwrap();
+        apply(&db, &item("delete_expense", json!({ "id": id }))).unwrap();
+        assert_eq!(snapshot(&db).unwrap()["money"]["expenses"].as_array().unwrap().len(), 1);
     }
 }
