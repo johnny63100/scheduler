@@ -49,8 +49,8 @@
   main { padding: 4px 16px calc(110px + var(--safe-b)); max-width: 640px; margin: 0 auto; }
 
   nav.tabs { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(14px + var(--safe-b)); z-index: 6;
-    display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--border); }
-  nav.tabs button { border: 0; background: transparent; padding: 10px 22px; border-radius: 999px; font-weight: 600; color: var(--muted); }
+    display: flex; gap: 4px; padding: 5px; border-radius: 999px; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--border); width: max-content; }
+  nav.tabs button { border: 0; background: transparent; padding: 10px 18px; white-space: nowrap; border-radius: 999px; font-weight: 600; color: var(--muted); }
   nav.tabs button.on { background: var(--primary); color: #fff; }
   .fab { position: fixed; right: 18px; bottom: calc(14px + var(--safe-b)); z-index: 6; width: 54px; height: 54px; border-radius: 50%; border: 0;
     background: var(--primary); color: #fff; box-shadow: 0 8px 22px color-mix(in srgb, var(--primary) 45%, transparent); display: grid; place-items: center; }
@@ -92,6 +92,30 @@
   .chip.err { background: var(--danger-soft); color: var(--danger); }
   .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
   .more { display: block; margin: 0 auto 14px; border: 0; background: none; color: var(--muted); font-size: 13px; text-decoration: underline; }
+
+  .ev[data-ev] { cursor: pointer; }
+  .ev[data-ev]:active { background: var(--surface-2); }
+
+  /* ---- month calendar */
+  .cal-head { display: flex; align-items: center; gap: 8px; margin: 2px 2px 10px; }
+  .cal-head h2 { font-size: 18px; margin: 0; flex: 1; }
+  .cal-head button { width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--surface); font-size: 18px; color: var(--muted); }
+  .cal-head .today-btn { width: auto; padding: 0 12px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .month { background: var(--surface); border-radius: var(--radius); padding: 8px 4px 6px; }
+  .month .dows, .month .week { display: grid; grid-template-columns: repeat(7, 1fr); }
+  .month .dows span { text-align: center; font-size: 11px; color: var(--muted); padding-bottom: 6px; }
+  .month .dows span:first-child, .cell.sun .n { color: #e0566b; }
+  .month .dows span:last-child, .cell.sat .n { color: #4a83e8; }
+  .cell { min-height: 64px; border: 0; background: none; padding: 3px 1px 2px; display: flex; flex-direction: column; align-items: stretch; gap: 2px; border-radius: 10px; min-width: 0; text-align: left; }
+  .cell .n { align-self: center; font-size: 13px; font-weight: 600; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; }
+  .cell.other { opacity: .35; }
+  .cell.today .n { background: var(--primary-soft); color: var(--primary); }
+  .cell.sel { background: var(--surface-2); }
+  .cell.sel .n { background: var(--primary); color: #fff; }
+  .cell .pill { display: block; font-size: 10px; line-height: 14px; height: 14px; padding: 0 3px; border-radius: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #fff; }
+  .cell .pill.light { background: var(--surface-3) !important; color: var(--muted); }
+  .cell .more-n { font-size: 10px; color: var(--muted); padding-left: 3px; }
+  .sel-day { margin-top: 16px; }
 
   /* ---- todos */
   .group { margin-bottom: 16px; }
@@ -141,6 +165,9 @@
   .btn:disabled { opacity: .5; }
   .btn.ghost { background: var(--surface-2); color: var(--text); }
   .btn.danger { background: var(--danger-soft); color: var(--danger); }
+  .sheet-title { font-size: 17px; font-weight: 700; margin: 0 2px 12px; }
+  .scope { margin-bottom: 12px; }
+  .scope p { font-size: 12.5px; color: var(--muted); margin: 0 0 6px 2px; font-weight: 600; }
 
   /* ---- setup */
   .setup { max-width: 420px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 40px) 22px 40px; }
@@ -202,11 +229,13 @@
   </div>
   <main>
     <div id="banner"></div>
-    <section id="p-events"></section>
+    <section id="p-calendar"></section>
+    <section id="p-events" hidden></section>
     <section id="p-todos" hidden></section>
   </main>
   <nav class="tabs">
-    <button data-tab="events" class="on">일정</button>
+    <button data-tab="calendar" class="on">달력</button>
+    <button data-tab="events">목록</button>
     <button data-tab="todos">할 일</button>
   </nav>
   <button class="fab" id="b-add" aria-label="추가"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -216,7 +245,8 @@
 <div class="scrim" id="scrim" hidden></div>
 <div class="sheet" id="sheet" hidden role="dialog" aria-modal="true">
   <div class="grab"></div>
-  <div class="seg">
+  <div class="sheet-title" id="sheet-title" hidden>일정 수정</div>
+  <div class="seg" id="kind-seg">
     <button data-kind="event" class="on">일정</button>
     <button data-kind="todo">할 일</button>
   </div>
@@ -241,7 +271,15 @@
       </select>
     </div>
     <div class="field"><label>색</label><div class="colors" id="colors"></div></div>
-    <button class="btn" type="submit">일정 추가</button>
+    <div class="scope" id="scope" hidden>
+      <p>반복 일정이에요. 어디까지 바꿀까요?</p>
+      <div class="seg" style="margin:0">
+        <button type="button" data-scope="one" class="on">이 일정만</button>
+        <button type="button" data-scope="all">반복 전체</button>
+      </div>
+    </div>
+    <button class="btn" type="submit" id="ev-submit">일정 추가</button>
+    <button class="btn danger" type="button" id="ev-delete" hidden>삭제</button>
   </form>
   <form id="f-todo" hidden>
     <div class="field"><input class="input title" name="title" placeholder="할 일" required /></div>
@@ -282,7 +320,11 @@ let sb = null;
 let user = null;
 let snapshot = null;     // { generated_at, events, todos, todo_groups, from, to }
 let inbox = [];          // recent nora_inbox rows
-let tab = 'events';
+let tab = 'calendar';
+let calMonth = todayStr().slice(0, 7);
+let editing = null;      // event being edited ({ id, occurrence, repeats })
+let scope = 'one';
+let shownEvents = [];    // events in the current render, indexed by data-ev
 let showPast = false;
 let selectedDay = todayStr();
 let kind = 'event';
@@ -403,7 +445,8 @@ async function send(kindName, payload) {
 
 function render() {
   renderHeader();
-  if (tab === 'events') renderEvents(); else renderTodos();
+  shownEvents = [];
+  if (tab === 'calendar') renderCalendar(); else if (tab === 'events') renderEvents(); else renderTodos();
 }
 
 function ago(ms) {
@@ -416,7 +459,7 @@ function ago(ms) {
 }
 
 function renderHeader() {
-  $('#h-title').textContent = tab === 'events' ? '일정' : '할 일';
+  $('#h-title').textContent = { calendar: '달력', events: '일정', todos: '할 일' }[tab];
   const banner = $('#banner');
   if (!snapshot) {
     $('#h-sync').textContent = 'PC에서 아직 올린 내용이 없어요';
@@ -445,18 +488,31 @@ function eventDays(e) {
   return out;
 }
 
+const fromForm = (p) => ({
+  title: p.title, all_day: !!p.all_day, location: p.location || '', memo: p.memo || '',
+  start: `${p.start_date}T${p.all_day ? '00:00' : p.start_time || '09:00'}:00`,
+  end: `${p.end_date || p.start_date}T${p.all_day ? '00:00' : p.end_time || p.start_time || '10:00'}:00`,
+});
+const sameOcc = (e, p) => e.id === p.id && (e.occurrence ?? null) === (p.occurrence ?? null);
+
 function allEvents() {
-  const list = (snapshot?.events ?? []).map((e) => ({ ...e, pending: false }));
+  let list = (snapshot?.events ?? []).map((e) => ({ ...e, pending: false }));
+  for (const r of pending()) {
+    if (r.error) continue;
+    const p = r.payload;
+    if (r.kind === 'delete_event') {
+      list = list.filter((e) => !(p.scope === 'all' || !e.repeats ? e.id === p.id : sameOcc(e, p)));
+    } else if (r.kind === 'update_event') {
+      list = list.map((e) => {
+        if (sameOcc(e, p)) return { ...e, ...fromForm(p), color: p.color ?? e.color, reminder: p.reminder, pending: !r.applied_at };
+        if (p.scope === 'all' && e.id === p.id) return { ...e, title: p.title, color: p.color ?? e.color, location: p.location || '', memo: p.memo || '', pending: !r.applied_at };
+        return e;
+      });
+    }
+  }
   for (const r of pending()) {
     if (r.kind !== 'add_event') continue;
-    const p = r.payload;
-    const sd = p.start_date, ed = p.end_date || p.start_date;
-    list.push({
-      title: p.title, all_day: !!p.all_day, color: p.color ?? PALETTE[0], location: p.location || '', memo: p.memo || '',
-      start: `${sd}T${p.all_day ? '00:00' : p.start_time || '09:00'}:00`,
-      end: `${ed}T${p.all_day ? '00:00' : p.end_time || p.start_time || '10:00'}:00`,
-      pending: !r.applied_at, error: r.error,
-    });
+    list.push({ ...fromForm(r.payload), color: r.payload.color ?? PALETTE[0], pending: !r.applied_at, error: r.error });
   }
   return list;
 }
@@ -467,14 +523,64 @@ function todoDone(t) {
   return done;
 }
 
-function renderEvents() {
-  const el = $('#p-events');
-  const today = todayStr();
+/** Events (and todos with a deadline, like the PC calendar) per day, each day sorted. */
+function dayMap() {
   const byDay = new Map();
   const put = (d, item) => { if (!byDay.has(d)) byDay.set(d, []); byDay.get(d).push(item); };
   for (const e of allEvents()) for (const d of eventDays(e)) put(d, { type: 'event', e });
-  // Todos with a deadline show on their day, like the PC calendar.
   for (const t of snapshot?.todos ?? []) if (t.due && !t.parent_id) put(t.due, { type: 'todo', t });
+  for (const [d, items] of byDay) items.sort((a, b) => sortKey(a, d).localeCompare(sortKey(b, d)));
+  return byDay;
+}
+
+function dayCard(d, items) {
+  let html = '<div class="card">';
+  for (const it of items) html += it.type === 'event' ? eventRow(it.e, d) : todoDueRow(it.t);
+  return html + '</div>';
+}
+
+function renderCalendar() {
+  const el = $('#p-calendar');
+  const today = todayStr();
+  const byDay = dayMap();
+  const [y, m] = calMonth.split('-').map(Number);
+  const first = new Date(y, m - 1, 1);
+  let d = addDays(ymd(first), -first.getDay());
+  let html = `<div class="cal-head"><h2>${y}년 ${m}월</h2>
+    <button class="today-btn" data-cal="today">오늘</button>
+    <button data-cal="-1" aria-label="이전 달">‹</button><button data-cal="1" aria-label="다음 달">›</button></div>`;
+  html += '<div class="month"><div class="dows">' + DOW.map((x) => `<span>${x}</span>`).join('') + '</div>';
+  for (let w = 0; w < 6; w++) {
+    if (w >= 4 && d.slice(0, 7) !== calMonth) break;
+    html += '<div class="week">';
+    for (let i = 0; i < 7; i++) {
+      const date = parseYmd(d);
+      const items = byDay.get(d) ?? [];
+      const evs = items.filter((x) => x.type === 'event');
+      const cls = ['cell', d.slice(0, 7) !== calMonth ? 'other' : '', d === today ? 'today' : '', d === selectedDay ? 'sel' : '', i === 0 ? 'sun' : i === 6 ? 'sat' : ''].join(' ');
+      const pills = evs.slice(0, 3).map((x) => `<span class="pill ${x.e.cancelled ? 'light' : ''}" style="background:${hex(x.e.color)}">${esc(x.e.title)}</span>`).join('');
+      const more = evs.length > 3 ? `<span class="more-n">+${evs.length - 3}</span>` : '';
+      html += `<button class="${cls}" data-day="${d}"><span class="n">${date.getDate()}</span>${pills}${more}</button>`;
+      d = addDays(d, 1);
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  const sel = parseYmd(selectedDay);
+  const items = byDay.get(selectedDay) ?? [];
+  html += `<div class="day sel-day"><h3><b>${sel.getMonth() + 1}월 ${sel.getDate()}일</b>${DOW[sel.getDay()]}요일${selectedDay === today ? ' · 오늘' : ''}</h3>`;
+  html += items.length ? dayCard(selectedDay, items) : '<div class="card"><div class="ev"><span class="meta">일정이 없어요. + 로 추가할 수 있어요.</span></div></div>';
+  html += '</div>';
+  if (snapshot && (calMonth < snapshot.from.slice(0, 7) || calMonth > snapshot.to.slice(0, 7))) {
+    html += '<p class="empty" style="padding:16px">이 달은 휴대폰에 올라오지 않는 범위예요 (약 2달 전 ~ 6달 후).</p>';
+  }
+  el.innerHTML = html;
+}
+
+function renderEvents() {
+  const el = $('#p-events');
+  const today = todayStr();
+  const byDay = dayMap();
 
   const first = showPast ? (snapshot?.from ?? addDays(today, -14)) : today;
   const last = snapshot?.to ?? addDays(today, 60);
@@ -495,12 +601,10 @@ function renderEvents() {
   let html = showPast ? '<button class="more" data-act="hide-past">지난 일정 숨기기</button>' : '';
   const days = [...byDay.keys()].filter((d) => d >= first && d <= last).sort();
   for (const d of days) {
-    const items = byDay.get(d).sort((a, b) => sortKey(a, d).localeCompare(sortKey(b, d)));
+    const items = byDay.get(d);
     const date = parseYmd(d);
     const rel = d === today ? '오늘' : d === addDays(today, 1) ? '내일' : '';
-    html += `<div class="day ${d === today ? 'is-today' : ''}" id="d-${d}"><h3><b>${date.getMonth() + 1}월 ${date.getDate()}일</b>${DOW[date.getDay()]}요일${rel ? ' · ' + rel : ''}</h3><div class="card">`;
-    for (const it of items) html += it.type === 'event' ? eventRow(it.e, d) : todoDueRow(it.t);
-    html += '</div></div>';
+    html += `<div class="day ${d === today ? 'is-today' : ''}" id="d-${d}"><h3><b>${date.getMonth() + 1}월 ${date.getDate()}일</b>${DOW[date.getDay()]}요일${rel ? ' · ' + rel : ''}</h3>${dayCard(d, items)}</div>`;
   }
   if (!days.length) html += `<div class="empty">${snapshot ? '다가오는 일정이 없어요' : ''}</div>`;
   el.innerHTML = strip + html;
@@ -521,7 +625,9 @@ function eventRow(e, d) {
   else time = e.start.slice(11, 16);
   const meta = [e.location && `📍 ${esc(e.location)}`, !e.all_day && sd === d && ed === d ? `${e.start.slice(11, 16)}–${e.end.slice(11, 16)}` : '', esc(e.memo).slice(0, 160)].filter(Boolean).join('\n');
   const chip = e.error ? '<span class="chip err">실패</span>' : e.pending ? '<span class="chip">PC 반영 대기</span>' : e.repeats ? '<span class="chip">반복</span>' : '';
-  return `<div class="ev ${e.cancelled ? 'cancelled' : ''}"><span class="bar" style="background:${hex(e.color)}"></span><span class="time">${time}</span><div class="body"><div class="title">${esc(e.title)}${chip}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</div></div>`;
+  const editable = typeof e.id === 'number';
+  const idx = editable ? shownEvents.push(e) - 1 : -1;
+  return `<div class="ev ${e.cancelled ? 'cancelled' : ''}" ${editable ? `data-ev="${idx}"` : ''}><span class="bar" style="background:${hex(e.color)}"></span><span class="time">${time}</span><div class="body"><div class="title">${esc(e.title)}${chip}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</div></div>`;
 }
 
 function todoDueRow(t) {
@@ -575,13 +681,41 @@ function todoRow(t, g, today, sub = false) {
 document.querySelectorAll('nav.tabs button').forEach((b) => (b.onclick = () => {
   tab = b.dataset.tab;
   document.querySelectorAll('nav.tabs button').forEach((x) => x.classList.toggle('on', x === b));
+  $('#p-calendar').hidden = tab !== 'calendar';
   $('#p-events').hidden = tab !== 'events';
   $('#p-todos').hidden = tab !== 'todos';
   window.scrollTo({ top: 0 });
   render();
 }));
 
+function onEventTap(e) {
+  const row = e.target.closest('[data-ev]');
+  if (row) { openSheet(shownEvents[Number(row.dataset.ev)]); return true; }
+  return false;
+}
+
+$('#p-calendar').addEventListener('click', (e) => {
+  if (onEventTap(e)) return;
+  const nav = e.target.closest('[data-cal]');
+  if (nav) {
+    if (nav.dataset.cal === 'today') { calMonth = todayStr().slice(0, 7); selectedDay = todayStr(); }
+    else {
+      const [y, m] = calMonth.split('-').map(Number);
+      const n = new Date(y, m - 1 + Number(nav.dataset.cal), 1);
+      calMonth = ymd(n).slice(0, 7);
+    }
+    return renderCalendar();
+  }
+  const day = e.target.closest('[data-day]');
+  if (day) {
+    selectedDay = day.dataset.day;
+    if (selectedDay.slice(0, 7) !== calMonth) calMonth = selectedDay.slice(0, 7);
+    renderCalendar();
+  }
+});
+
 $('#p-events').addEventListener('click', (e) => {
+  if (onEventTap(e)) return;
   const day = e.target.closest('[data-day]');
   if (day) {
     selectedDay = day.dataset.day;
@@ -634,23 +768,53 @@ function setKind(k) {
 }
 document.querySelectorAll('.seg button').forEach((b) => (b.onclick = () => setKind(b.dataset.kind)));
 
-function openSheet() {
+function setScope(s) {
+  scope = s;
+  document.querySelectorAll('[data-scope]').forEach((b) => b.classList.toggle('on', b.dataset.scope === s));
+}
+document.querySelectorAll('[data-scope]').forEach((b) => (b.onclick = () => setScope(b.dataset.scope)));
+
+function openSheet(ev = null) {
   const f = $('#f-event');
   f.reset();
-  const day = selectedDay < todayStr() ? todayStr() : selectedDay;
-  f.start_date.value = day;
-  f.end_date.value = day;
-  const now = new Date();
-  const h = Math.min(now.getHours() + 1, 23);
-  f.start_time.value = `${pad(h)}:00`;
-  f.end_time.value = `${pad(Math.min(h + 1, 23))}:${h + 1 > 23 ? '55' : '00'}`;
-  color = PALETTE[0];
+  editing = ev ? { id: ev.id, occurrence: ev.occurrence ?? null, repeats: !!ev.repeats } : null;
+  $('#kind-seg').hidden = !!ev;
+  $('#sheet-title').hidden = !ev;
+  $('#ev-delete').hidden = !ev;
+  $('#scope').hidden = !ev?.repeats;
+  $('#ev-submit').textContent = ev ? '저장' : '일정 추가';
+  setScope('one');
+  if (ev) {
+    f.title.value = ev.title;
+    f.all_day.checked = !!ev.all_day;
+    f.start_date.value = ev.start.slice(0, 10);
+    f.end_date.value = ev.end.slice(0, 10);
+    f.start_time.value = ev.all_day ? '09:00' : ev.start.slice(11, 16);
+    f.end_time.value = ev.all_day ? '10:00' : ev.end.slice(11, 16);
+    f.location.value = ev.location || '';
+    f.memo.value = ev.memo || '';
+    f.reminder.value = ev.reminder == null ? '' : String(ev.reminder);
+    if (f.reminder.value !== String(ev.reminder ?? '')) {
+      f.reminder.insertAdjacentHTML('beforeend', `<option value="${ev.reminder}">${ev.reminder}분 전</option>`);
+      f.reminder.value = String(ev.reminder);
+    }
+    color = ev.color;
+  } else {
+    const day = selectedDay < todayStr() ? todayStr() : selectedDay;
+    f.start_date.value = day;
+    f.end_date.value = day;
+    const now = new Date();
+    const h = Math.min(now.getHours() + 1, 23);
+    f.start_time.value = `${pad(h)}:00`;
+    f.end_time.value = `${pad(Math.min(h + 1, 23))}:${h + 1 > 23 ? '55' : '00'}`;
+    color = PALETTE[0];
+  }
   syncColors();
   timedFields();
   const t = $('#f-todo');
   t.reset();
   $('#t-group').innerHTML = '<option value="">그룹 없음</option>' + (snapshot?.todo_groups ?? []).map((g) => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
-  setKind(tab === 'todos' ? 'todo' : 'event');
+  setKind(ev || tab !== 'todos' ? 'event' : 'todo');
   $('#scrim').hidden = false;
   $('#sheet').hidden = false;
   requestAnimationFrame(() => { $('#scrim').classList.add('open'); $('#sheet').classList.add('open'); });
@@ -660,7 +824,7 @@ function closeSheet() {
   $('#sheet').classList.remove('open');
   setTimeout(() => { $('#scrim').hidden = true; $('#sheet').hidden = true; }, 250);
 }
-$('#b-add').onclick = openSheet;
+$('#b-add').onclick = () => openSheet();
 $('#scrim').onclick = closeSheet;
 
 function timedFields() { $('[data-timed]').hidden = $('#f-event').all_day.checked; }
@@ -687,9 +851,21 @@ $('#f-event').onsubmit = async (e) => {
     reminder: f.reminder.value ? Number(f.reminder.value) : null,
   };
   f.querySelector('[type=submit]').disabled = true;
-  const ok = await send('add_event', payload);
+  const ok = editing
+    ? await send('update_event', { ...payload, id: editing.id, occurrence: editing.occurrence, scope: editing.repeats ? scope : 'all' })
+    : await send('add_event', payload);
   f.querySelector('[type=submit]').disabled = false;
-  if (ok) { closeSheet(); toast('일정을 보냈어요'); }
+  if (ok) { closeSheet(); toast(editing ? '수정 내용을 보냈어요' : '일정을 보냈어요'); }
+};
+
+$('#ev-delete').onclick = async () => {
+  if (!editing) return;
+  const what = editing.repeats ? (scope === 'all' ? '반복 일정 전체를' : '이 날짜의 일정만') : '이 일정을';
+  if (!confirm(`${what} 삭제할까요?`)) return;
+  $('#ev-delete').disabled = true;
+  const ok = await send('delete_event', { id: editing.id, occurrence: editing.occurrence, scope: editing.repeats ? scope : 'all', title: $('#f-event').title.value });
+  $('#ev-delete').disabled = false;
+  if (ok) { closeSheet(); toast('삭제 요청을 보냈어요'); }
 };
 
 $('#f-todo').onsubmit = async (e) => {
