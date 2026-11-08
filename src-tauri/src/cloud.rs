@@ -35,8 +35,8 @@ const PUSH_EVERY: Duration = Duration::from_secs(10 * 60);
 /// Local edits arriving in a burst are sent together.
 const SETTLE: Duration = Duration::from_millis(1500);
 /// Events in the snapshot: this many days back and ahead of today.
-const DAYS_BACK: i64 = 14;
-const DAYS_AHEAD: i64 = 120;
+const DAYS_BACK: i64 = 62;
+const DAYS_AHEAD: i64 = 185;
 /// Finished todos stay visible on the phone for this many days.
 const DONE_KEEP_DAYS: i64 = 3;
 const DEFAULT_COLOR: u32 = 0x7c74ff;
@@ -292,6 +292,7 @@ fn snapshot(db: &Db) -> db::DbResult<Value> {
                 "memo": e.memo,
                 "cancelled": e.cancelled,
                 "repeats": e.repeat.is_some(),
+                "reminder": e.reminder,
             })
         })
         .collect();
@@ -357,6 +358,29 @@ struct NewEvent {
     reminder: Option<i64>,
 }
 
+/// Edit of an event shown on the phone. `occurrence` and `scope` matter only for repeating events.
+#[derive(Deserialize)]
+struct EditEvent {
+    id: i64,
+    occurrence: Option<NaiveDate>,
+    #[serde(default = "scope_one")]
+    scope: Scope,
+    #[serde(flatten)]
+    fields: NewEvent,
+}
+
+#[derive(Deserialize)]
+struct RemoveEvent {
+    id: i64,
+    occurrence: Option<NaiveDate>,
+    #[serde(default = "scope_one")]
+    scope: Scope,
+}
+
+fn scope_one() -> Scope {
+    Scope::One
+}
+
 #[derive(Deserialize)]
 struct NewTodo {
     title: String,
@@ -379,25 +403,71 @@ fn time(s: &Option<String>) -> Option<NaiveTime> {
     s.as_deref().and_then(db::normalize_time).and_then(|t| NaiveTime::parse_from_str(&t, "%H:%M").ok())
 }
 
+/// Title and start/end from the phone's form fields (all-day end dates are inclusive).
+fn event_times(n: &NewEvent) -> Result<(String, NaiveDateTime, NaiveDateTime), String> {
+    let title = n.title.trim();
+    if title.is_empty() {
+        return Err("제목이 비어 있어요".into());
+    }
+    let end_date = n.end_date.unwrap_or(n.start_date).max(n.start_date);
+    let (start, end) = if n.all_day {
+        (n.start_date.and_time(NaiveTime::MIN), end_date.and_time(NaiveTime::MIN))
+    } else {
+        let start = n.start_date.and_time(time(&n.start_time).unwrap_or(NaiveTime::from_hms_opt(9, 0, 0).unwrap()));
+        let end = time(&n.end_time).map(|t| end_date.and_time(t)).filter(|e| *e > start);
+        (start, end.unwrap_or(start + chrono::Duration::hours(1)))
+    };
+    Ok((title.into(), start, end))
+}
+
+/// The stored row of an event (not an expanded occurrence), or `None` if it is gone.
+fn stored_event(db: &Db, id: i64) -> Result<Option<Event>, String> {
+    let row = db
+        .conn
+        .query_row(
+            "SELECT color, links, repeat, exdates, cancelled, tags FROM events WHERE id=?1",
+            [id],
+            |r| {
+                Ok((
+                    r.get::<_, u32>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                    r.get::<_, String>(3)?,
+                    r.get::<_, bool>(4)?,
+                    r.get::<_, String>(5)?,
+                ))
+            },
+        )
+        .map(Some)
+        .or_else(|e| if matches!(e, rusqlite::Error::QueryReturnedNoRows) { Ok(None) } else { Err(e) })
+        .map_err(|e| e.to_string())?;
+    Ok(row.map(|(color, links, repeat, exdates, cancelled, tags)| Event {
+        id,
+        title: String::new(),
+        start: NaiveDateTime::MIN,
+        end: NaiveDateTime::MIN,
+        all_day: false,
+        color,
+        location: String::new(),
+        links: links.lines().filter(|l| !l.trim().is_empty()).map(str::to_owned).collect(),
+        memo: String::new(),
+        repeat: repeat.and_then(|s| serde_json::from_str(&s).ok()),
+        exdates: serde_json::from_str(&exdates).unwrap_or_default(),
+        occurrence: None,
+        cancelled,
+        tags: serde_json::from_str(&tags).unwrap_or_default(),
+        reminder: None,
+    }))
+}
+
 fn apply(db: &Db, item: &InboxItem) -> Result<(), String> {
     match item.kind.as_str() {
         "add_event" => {
             let n: NewEvent = parse(&item.payload)?;
-            let title = n.title.trim();
-            if title.is_empty() {
-                return Err("제목이 비어 있어요".into());
-            }
-            let end_date = n.end_date.unwrap_or(n.start_date).max(n.start_date);
-            let (start, end) = if n.all_day {
-                (n.start_date.and_time(NaiveTime::MIN), end_date.and_time(NaiveTime::MIN))
-            } else {
-                let start: NaiveDateTime = n.start_date.and_time(time(&n.start_time).unwrap_or(NaiveTime::from_hms_opt(9, 0, 0).unwrap()));
-                let end = time(&n.end_time).map(|t| end_date.and_time(t)).filter(|e| *e > start);
-                (start, end.unwrap_or(start + chrono::Duration::hours(1)))
-            };
+            let (title, start, end) = event_times(&n)?;
             let event = Event {
                 id: 0,
-                title: title.into(),
+                title,
                 start,
                 end,
                 all_day: n.all_day,
@@ -413,6 +483,32 @@ fn apply(db: &Db, item: &InboxItem) -> Result<(), String> {
                 reminder: n.reminder.filter(|m| *m >= 0),
             };
             db.save_event(&event, Scope::All).map(|_| ()).map_err(|e| e.to_string())
+        }
+        "update_event" => {
+            let edit: EditEvent = parse(&item.payload)?;
+            let Some(stored) = stored_event(db, edit.id)? else {
+                return Err("PC에서 이미 삭제된 일정이에요".into());
+            };
+            let n = edit.fields;
+            let (title, start, end) = event_times(&n)?;
+            let event = Event {
+                id: edit.id,
+                title,
+                start,
+                end,
+                all_day: n.all_day,
+                color: n.color.unwrap_or(stored.color),
+                location: n.location.trim().into(),
+                memo: n.memo,
+                reminder: n.reminder.filter(|m| *m >= 0),
+                occurrence: edit.occurrence.filter(|_| stored.repeat.is_some()),
+                ..stored
+            };
+            db.save_event(&event, edit.scope).map(|_| ()).map_err(|e| e.to_string())
+        }
+        "delete_event" => {
+            let r: RemoveEvent = parse(&item.payload)?;
+            db.delete_event(r.id, r.occurrence, r.scope).map(|_| ()).map_err(|e| e.to_string())
         }
         "add_todo" => {
             let n: NewTodo = parse(&item.payload)?;
@@ -538,5 +634,41 @@ mod tests {
         let snap = snapshot(&db).unwrap();
         assert_eq!(snap["todos"].as_array().unwrap().iter().find(|t| t["id"] == id).unwrap()["done"], true);
         assert!(apply(&db, &item("delete_everything", json!({}))).is_err());
+    }
+
+    #[test]
+    fn phone_edits_and_deletes_events() {
+        let db = temp_db();
+        let today = Local::now().date_naive();
+        apply(&db, &item("add_event", json!({ "title": "원래", "start_date": today, "start_time": "10:00", "end_time": "11:00" }))).unwrap();
+        let id = snapshot(&db).unwrap()["events"][0]["id"].as_i64().unwrap();
+        apply(&db, &item("update_event", json!({ "id": id, "title": "바뀜", "start_date": today, "start_time": "14:00", "end_time": "15:30", "location": "카페" }))).unwrap();
+        let e = snapshot(&db).unwrap()["events"][0].clone();
+        assert_eq!(e["title"], "바뀜");
+        assert!(e["start"].as_str().unwrap().ends_with("14:00:00"));
+        assert_eq!(e["location"], "카페");
+        apply(&db, &item("delete_event", json!({ "id": id }))).unwrap();
+        assert!(snapshot(&db).unwrap()["events"].as_array().unwrap().is_empty());
+        assert!(apply(&db, &item("update_event", json!({ "id": id, "title": "x", "start_date": today }))).is_err());
+
+        // Repeating series: edit one occurrence, then delete another one only.
+        let series = Event {
+            id: 0, title: "매일".into(), start: today.and_hms_opt(8, 0, 0).unwrap(), end: today.and_hms_opt(9, 0, 0).unwrap(),
+            all_day: false, color: DEFAULT_COLOR, location: String::new(), links: vec![], memo: String::new(),
+            repeat: serde_json::from_value(json!({ "freq": "daily", "interval": 1 })).ok(),
+            exdates: vec![], occurrence: None, cancelled: false, tags: vec![], reminder: None,
+        };
+        assert!(series.repeat.is_some(), "repeat json format");
+        let sid = db.save_event(&series, Scope::All).unwrap();
+        let day2 = today + chrono::Duration::days(1);
+        let day3 = today + chrono::Duration::days(2);
+        apply(&db, &item("update_event", json!({ "id": sid, "occurrence": day2, "scope": "one", "title": "하루만", "start_date": day2, "start_time": "12:00", "end_time": "13:00" }))).unwrap();
+        apply(&db, &item("delete_event", json!({ "id": sid, "occurrence": day3, "scope": "one" }))).unwrap();
+        let evs: Vec<Value> = snapshot(&db).unwrap()["events"].as_array().unwrap().clone();
+        let on = |d: NaiveDate| evs.iter().filter(|e| e["start"].as_str().unwrap().starts_with(&d.to_string())).cloned().collect::<Vec<_>>();
+        assert_eq!(on(today)[0]["title"], "매일");
+        assert_eq!(on(day2).len(), 1);
+        assert_eq!(on(day2)[0]["title"], "하루만");
+        assert!(on(day3).is_empty());
     }
 }
