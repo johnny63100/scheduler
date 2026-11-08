@@ -1,15 +1,18 @@
-// New-version notice: compares this app's version with the latest release on GitHub.
-// Checked at most once a day (and on demand in Settings → About); can be turned off.
-// Nothing is downloaded or installed; the user opens the release page themselves.
+// Self-update from this fork's GitHub releases (tauri-plugin-updater).
+// Checked when the app starts (and on demand in Settings → About); can be turned off.
+// The installer is signed in CI and verified against the public key in tauri.conf.json.
 import { getVersion } from '@tauri-apps/api/app';
-import { openUrl } from '@tauri-apps/plugin-opener';
+import { relaunch } from '@tauri-apps/plugin-process';
+import { check, type Update } from '@tauri-apps/plugin-updater';
 import { api } from './api';
 import { t } from './i18n.svelte';
-import { UPDATES_URL } from './links';
 import { toast } from './state.svelte';
 
 const SETTING = 'updates';
-const DAY_MS = 24 * 3600 * 1000;
+/** Minimum time between automatic checks. */
+const CHECK_EVERY_MS = 10 * 60 * 1000;
+let pending: Update | null = null;
+let installing = false;
 
 export const updates = $state({
   /** Check by itself when the app starts (once a day). */
@@ -54,24 +57,44 @@ export async function loadUpdates() {
   if (updates.latest && updates.current) updates.status = isNewer(updates.latest, updates.current) ? 'newer' : 'latest';
 }
 
-export const openReleasePage = () => openUrl(updates.url ?? UPDATES_URL).catch((e) => toast(String(e), 'error'));
+/** Downloads the found update, installs it and restarts the app. */
+export async function installUpdate() {
+  if (installing) return;
+  if (!pending) {
+    await checkForUpdates(true);
+    if (!pending) return;
+  }
+  installing = true;
+  toast(t('upd.installing'), 'info');
+  try {
+    await pending.downloadAndInstall();
+    await relaunch();
+  } catch (e) {
+    toast(String(e), 'error');
+  } finally {
+    installing = false;
+  }
+}
+
+/** Kept for the Settings button: now installs instead of opening a web page. */
+export const openReleasePage = () => installUpdate();
 
 /** Asks GitHub for the latest version. `manual`: from the Settings button (always checks, reports the result). */
 export async function checkForUpdates(manual = false) {
   if (updates.status === 'checking') return;
-  if (!manual && (!updates.auto || Date.now() - updates.checkedAt < DAY_MS)) return;
+  if (!manual && (!updates.auto || Date.now() - updates.checkedAt < CHECK_EVERY_MS)) return;
   updates.status = 'checking';
   try {
     if (!updates.current) updates.current = await getVersion();
-    const latest = await api.latestRelease();
+    pending = await check();
     updates.checkedAt = Date.now();
-    updates.latest = latest?.version ?? null;
-    updates.url = latest?.url ?? null;
-    const newer = !!latest && isNewer(latest.version, updates.current);
+    updates.latest = pending?.version ?? updates.current;
+    updates.url = null;
+    const newer = !!pending;
     updates.status = newer ? 'newer' : 'latest';
     await persist();
     if (newer) {
-      toast(t('upd.available', { v: latest!.version }), 'info', { label: t('upd.see'), run: openReleasePage });
+      toast(t('upd.available', { v: pending!.version }), 'info', { label: t('upd.see'), run: installUpdate });
     } else if (manual) {
       toast(t('upd.upToDate'), 'success');
     }
