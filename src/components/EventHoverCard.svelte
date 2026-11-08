@@ -150,7 +150,7 @@
     border-radius: 999px;
     font-size: 11.5px;
     font-weight: 600;
-    color: var(--tc);
+    color: color-mix(in srgb, var(--tc) 42%, var(--text));
     background: color-mix(in srgb, var(--tc) 14%, transparent);
   }
   .memo {

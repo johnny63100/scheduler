@@ -52,7 +52,7 @@
   .box {
     display: grid;
     flex: none;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
   }
   .time {
     flex: none;

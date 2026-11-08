@@ -674,7 +674,7 @@
     display: grid;
     place-items: center;
     border-radius: 10px;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
     background: color-mix(in srgb, var(--c) 14%, transparent);
   }
   .count {
@@ -682,7 +682,7 @@
     border-radius: 999px;
     font-size: 12px;
     font-weight: 700;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
     background: color-mix(in srgb, var(--c) 12%, transparent);
   }
   .year-head {

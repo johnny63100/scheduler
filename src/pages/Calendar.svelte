@@ -267,7 +267,7 @@
         <div class="ddays">
           {#each upcoming as d (d.id)}
             <div class="dd">
-              <span class="dd-label" style:color={hex(d.color)} style:background="color-mix(in srgb, {hex(d.color)} 14%, transparent)">{ddayLabel(d)}</span>
+              <span class="dd-label" style:color="color-mix(in srgb, {hex(d.color)} 42%, var(--text))" style:background="color-mix(in srgb, {hex(d.color)} 14%, transparent)">{ddayLabel(d)}</span>
               <span class="truncate">{d.title}</span>
             </div>
           {/each}
@@ -411,7 +411,7 @@
     padding: 8px 10px;
     border-radius: var(--radius-sm);
     border: 1.5px dashed color-mix(in srgb, var(--c) 60%, transparent);
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
     font-weight: 650;
   }
   .agenda :global(.todo-chip) {

@@ -98,7 +98,7 @@
     font-size: 34px;
     font-weight: 800;
     letter-spacing: -0.03em;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
     line-height: 1.1;
   }
   .name {

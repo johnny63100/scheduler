@@ -216,7 +216,7 @@
     border-radius: var(--radius-pill);
     font-size: 11px;
     font-weight: 650;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
     background: color-mix(in srgb, var(--c) 13%, transparent);
   }
   .none {

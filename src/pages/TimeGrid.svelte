@@ -423,7 +423,7 @@
     border-bottom-right-radius: 0;
   }
   .dday {
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
     border: 1.5px dashed color-mix(in srgb, var(--c) 60%, transparent);
     background: transparent;
     cursor: default;

@@ -619,7 +619,7 @@
   }
   .sub-icon {
     display: grid;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
   }
   .grid {
     display: grid;
@@ -657,7 +657,7 @@
     border-radius: 15px;
     display: grid;
     place-items: center;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
     background: color-mix(in srgb, var(--c) 14%, transparent);
   }
   .card-text {
@@ -728,7 +728,7 @@
   .kind-dot {
     display: grid;
     flex: none;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
   }
   .error {
     color: var(--danger);

@@ -55,7 +55,7 @@
   .icon {
     display: grid;
     flex: none;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
   }
   .compact {
     margin: 0 3px;

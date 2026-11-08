@@ -1,15 +1,15 @@
-// Soft, muted pastel palette. Colors are stored as 0xRRGGBB integers in the database.
+// Milky pastel palette (text on it is always dark; text in these colors is deepened, see `color-mix(... var(--text))`). Colors are stored as 0xRRGGBB integers in the database.
 // (Older saved colors from the previous, brighter palette are moved over once; see db.rs `pastel_palette`.)
 export const PALETTE: { name: string; value: number }[] = [
-  { name: 'Lavender', value: 0x9aa5e8 },
-  { name: 'Sky', value: 0x9fcfdc },
-  { name: 'Mint', value: 0x9cc5a5 },
-  { name: 'Lemon', value: 0xecd98f },
-  { name: 'Peach', value: 0xf2bc96 },
-  { name: 'Rose', value: 0xe8a1b1 },
-  { name: 'Grape', value: 0xc3a0d8 },
-  { name: 'Teal', value: 0x86bfbf },
-  { name: 'Slate', value: 0xaebcc3 },
+  { name: 'Lavender', value: 0xc3c8f4 },
+  { name: 'Sky', value: 0xbfe3ee },
+  { name: 'Mint', value: 0xc4e3cc },
+  { name: 'Lemon', value: 0xf6ebb8 },
+  { name: 'Peach', value: 0xf8d6c0 },
+  { name: 'Rose', value: 0xf3c6d2 },
+  { name: 'Grape', value: 0xdccaef },
+  { name: 'Teal', value: 0xbfe2df },
+  { name: 'Slate', value: 0xd6dde2 },
 ];
 
 export const DEFAULT_COLOR = PALETTE[0].value;

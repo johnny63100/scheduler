@@ -686,34 +686,44 @@ fn migrate(conn: &Connection) -> DbResult<()> {
     Ok(())
 }
 
-/// The color palette moved to softer pastel tones: colors saved from the old palette are
-/// switched to their pastel version once, so existing items match the new color picker.
-const PASTEL_PALETTE: [(u32, u32); 18] = [
+/// The color palette moved to milky pastel tones: colors saved from earlier palettes are
+/// switched to their new version once, so existing items match the color picker.
+const PASTEL_PALETTE: [(u32, u32); 27] = [
     // the original bright palette
-    (0x7c74ff, 0x9aa5e8),
-    (0x4aa8ff, 0x9fcfdc),
-    (0x34c38f, 0x9cc5a5),
-    (0xf5b83d, 0xecd98f),
-    (0xff8a5c, 0xf2bc96),
-    (0xf2668b, 0xe8a1b1),
-    (0xb164e8, 0xc3a0d8),
-    (0x22b5bf, 0x86bfbf),
-    (0x7d8597, 0xaebcc3),
-    // the first pastel try (briefly in 0.8.x)
-    (0x9d97f7, 0x9aa5e8),
-    (0x7fbcf2, 0x9fcfdc),
-    (0x7dceaa, 0x9cc5a5),
-    (0xf3c76e, 0xecd98f),
-    (0xf7a385, 0xf2bc96),
-    (0xf092ab, 0xe8a1b1),
-    (0xbf94e6, 0xc3a0d8),
-    (0x6fc4c9, 0x86bfbf),
-    (0x9ea5b4, 0xaebcc3)
+    (0x7c74ff, 0xc3c8f4),
+    (0x4aa8ff, 0xbfe3ee),
+    (0x34c38f, 0xc4e3cc),
+    (0xf5b83d, 0xf6ebb8),
+    (0xff8a5c, 0xf8d6c0),
+    (0xf2668b, 0xf3c6d2),
+    (0xb164e8, 0xdccaef),
+    (0x22b5bf, 0xbfe2df),
+    (0x7d8597, 0xd6dde2),
+    // first pastel try
+    (0x9d97f7, 0xc3c8f4),
+    (0x7fbcf2, 0xbfe3ee),
+    (0x7dceaa, 0xc4e3cc),
+    (0xf3c76e, 0xf6ebb8),
+    (0xf7a385, 0xf8d6c0),
+    (0xf092ab, 0xf3c6d2),
+    (0xbf94e6, 0xdccaef),
+    (0x6fc4c9, 0xbfe2df),
+    (0x9ea5b4, 0xd6dde2),
+    // dusty pastel (0.8.x)
+    (0x9aa5e8, 0xc3c8f4),
+    (0x9fcfdc, 0xbfe3ee),
+    (0x9cc5a5, 0xc4e3cc),
+    (0xecd98f, 0xf6ebb8),
+    (0xf2bc96, 0xf8d6c0),
+    (0xe8a1b1, 0xf3c6d2),
+    (0xc3a0d8, 0xdccaef),
+    (0x86bfbf, 0xbfe2df),
+    (0xaebcc3, 0xd6dde2),
 ];
 
 fn pastel_palette(conn: &Connection) -> DbResult<()> {
     let done: Option<String> =
-        conn.query_row("SELECT value FROM settings WHERE key='palette.v2'", [], |r| r.get(0)).optional()?;
+        conn.query_row("SELECT value FROM settings WHERE key='palette.v3'", [], |r| r.get(0)).optional()?;
     if done.is_some() {
         return Ok(());
     }
@@ -723,7 +733,7 @@ fn pastel_palette(conn: &Connection) -> DbResult<()> {
             tx.execute(&format!("UPDATE {table} SET color=?1 WHERE color=?2"), params![new, old])?;
         }
     }
-    tx.execute("INSERT OR REPLACE INTO settings(key, value) VALUES('palette.v2', '1')", [])?;
+    tx.execute("INSERT OR REPLACE INTO settings(key, value) VALUES('palette.v3', '1')", [])?;
     tx.commit()
 }
 

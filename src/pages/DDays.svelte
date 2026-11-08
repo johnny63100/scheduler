@@ -225,7 +225,7 @@
     <div class="field">
       <label for="dd-date">{t('common.date')}</label>
       <DateField id="dd-date" value={editing.date} onchange={(v) => editing && v && (editing.date = v)} />
-      {#if editing.date}<span class="preview" style:color={hex(editing.color)}>{[ddayLabel(editing), relative(editing)].filter(Boolean).join(' · ')}</span>{/if}
+      {#if editing.date}<span class="preview" style:color="color-mix(in srgb, {hex(editing.color)} 42%, var(--text))">{[ddayLabel(editing), relative(editing)].filter(Boolean).join(' · ')}</span>{/if}
     </div>
     <div class="field options">
       <label class="row opt">
@@ -379,7 +379,7 @@
     font-size: 36px;
     font-weight: 800;
     letter-spacing: -0.03em;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
     line-height: 1.1;
   }
   .name {
@@ -398,7 +398,7 @@
     border-radius: 999px;
     font-size: 12px;
     font-weight: 650;
-    color: var(--c);
+    color: var(--ink, color-mix(in srgb, var(--c) 42%, var(--text)));
     background: color-mix(in srgb, var(--c) 14%, transparent);
   }
   .preview {
