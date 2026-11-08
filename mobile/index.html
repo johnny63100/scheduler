@@ -6,12 +6,12 @@
 <meta name="theme-color" content="#1c1c1f" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="Nora" />
+<meta name="apple-mobile-web-app-title" content="Holmes" />
 <link rel="manifest" href="manifest.webmanifest" />
 <link rel="icon" href="icon-192.png" />
 <link rel="apple-touch-icon" href="apple-touch-icon.png" />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
-<title>Nora Schedule</title>
+<title>Holmes</title>
 <style>
   :root {
     --bg: #f4f5fa; --surface: #fff; --surface-2: #f2f3f8; --surface-3: #e9ebf3; --border: #e5e7ef;
@@ -113,7 +113,7 @@
   .cell.today .n { background: var(--primary-soft); color: var(--primary); }
   .cell.sel { background: var(--surface-2); }
   .cell.sel .n { background: var(--primary); color: var(--on-primary); }
-  .cell .pill { display: block; font-size: 10px; line-height: 14px; height: 14px; padding: 0 3px; border-radius: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #fff; }
+  .cell .pill { display: block; font-size: 10px; line-height: 14px; height: 14px; padding: 0 3px; border-radius: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #1e2232; }
   .cell .pill.light { background: var(--surface-3) !important; color: var(--muted); }
   .cell .more-n { font-size: 10px; color: var(--muted); padding-left: 3px; }
   .sel-day { margin-top: 16px; }
@@ -236,7 +236,7 @@
 <!-- Step 1: Supabase project -->
 <section class="setup" id="v-config" hidden>
   <img class="logo" src="icon-192.png" alt="" />
-  <h2>Nora 연결하기</h2>
+  <h2>Holmes 연결하기</h2>
   <p class="lead">PC 앱 설정의 <b>휴대폰 동기화</b>에 넣은 것과<br />같은 Supabase 프로젝트 정보를 입력해 주세요.</p>
   <div class="field"><label for="c-url">프로젝트 URL</label><input id="c-url" class="input" placeholder="https://xxxx.supabase.co" autocomplete="off" autocapitalize="off" /></div>
   <div class="field"><label for="c-key">공개 키 (publishable / anon)</label><input id="c-key" class="input" placeholder="sb_publishable_… 또는 eyJ…" autocomplete="off" autocapitalize="off" /></div>
@@ -393,7 +393,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 // Config & state
 
 const CFG_KEY = 'nora.cloud';
-const PALETTE = [0x7c74ff, 0x4aa8ff, 0x34c38f, 0xf5b83d, 0xff8a5c, 0xf2668b, 0xb164e8, 0x22b5bf, 0x7d8597];
+const PALETTE = [0x9aa5e8, 0x9fcfdc, 0x9cc5a5, 0xecd98f, 0xf2bc96, 0xe8a1b1, 0xc3a0d8, 0x86bfbf, 0xaebcc3];
 const DOW = ['일', '월', '화', '수', '목', '금', '토'];
 const SLOTS = [['breakfast', '아침', '🌅'], ['lunch', '점심', '☀️'], ['dinner', '저녁', '🌙'], ['snack', '간식', '🍪']];
 const EXERCISES = [

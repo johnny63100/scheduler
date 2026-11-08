@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
-  import { CircleCheck, PanelLeftClose, PanelLeftOpen, Pause, Play, Settings as SettingsIcon, Sticker, Check } from '@lucide/svelte';
+  import { PanelLeftClose, PanelLeftOpen, Pause, Play, Settings as SettingsIcon, Sticker, Check } from '@lucide/svelte';
   import { api, type TrackerStatus } from './lib/api';
   import { pomodoro, PHASES } from './lib/pomodoro.svelte';
   import { data, initSidebar, initTheme, setSidebarCollapsed, toast, ui } from './lib/state.svelte';
@@ -192,15 +192,6 @@
 <div class="app" class:collapsed class:mac={isMac}>
   <aside class="sidebar">
     <div class="drag" data-tauri-drag-region></div>
-    <div class="brand">
-      <div class="logo"><CircleCheck size={20} strokeWidth={2.5} /></div>
-      {#if !collapsed}
-        <div class="brand-text" transition:fade={{ duration: 120 }}>
-          <div class="name">Nora</div>
-          <div class="tag truncate">{t('app.tagline')}</div>
-        </div>
-      {/if}
-    </div>
 
     <nav>
       {#each NAV as item, i (item.id)}
@@ -397,41 +388,13 @@
   .mac .sidebar {
     padding-top: 44px;
   }
+  .mac .drag {
+    height: 40px;
+  }
   .drag {
     position: absolute;
     inset: 0 0 auto 0;
-    height: 40px;
-  }
-  .brand {
-    flex: none;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 4px 5px 18px;
-    min-width: 0;
-  }
-  .brand-text {
-    min-width: 0;
-  }
-  .logo {
-    width: 38px;
-    height: 38px;
-    flex: none;
-    border-radius: 13px;
-    display: grid;
-    place-items: center;
-    color: var(--primary-text);
-    background: linear-gradient(140deg, var(--primary), var(--accent-2));
-    box-shadow: 0 6px 16px color-mix(in srgb, var(--primary) 40%, transparent);
-  }
-  .name {
-    font-weight: 750;
-    font-size: 17px;
-    letter-spacing: -0.02em;
-  }
-  .tag {
-    font-size: 12px;
-    color: var(--faint);
+    height: 18px;
   }
   /* In short windows the page list scrolls, so the buttons below it always stay visible. */
   nav {
@@ -446,9 +409,6 @@
     scrollbar-color: var(--surface-3) transparent;
   }
   @media (max-height: 820px) {
-    .brand {
-      padding-bottom: 10px;
-    }
     .sidebar .nav-item {
       height: 36px;
     }

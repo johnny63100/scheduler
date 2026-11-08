@@ -686,6 +686,47 @@ fn migrate(conn: &Connection) -> DbResult<()> {
     Ok(())
 }
 
+/// The color palette moved to softer pastel tones: colors saved from the old palette are
+/// switched to their pastel version once, so existing items match the new color picker.
+const PASTEL_PALETTE: [(u32, u32); 18] = [
+    // the original bright palette
+    (0x7c74ff, 0x9aa5e8),
+    (0x4aa8ff, 0x9fcfdc),
+    (0x34c38f, 0x9cc5a5),
+    (0xf5b83d, 0xecd98f),
+    (0xff8a5c, 0xf2bc96),
+    (0xf2668b, 0xe8a1b1),
+    (0xb164e8, 0xc3a0d8),
+    (0x22b5bf, 0x86bfbf),
+    (0x7d8597, 0xaebcc3),
+    // the first pastel try (briefly in 0.8.x)
+    (0x9d97f7, 0x9aa5e8),
+    (0x7fbcf2, 0x9fcfdc),
+    (0x7dceaa, 0x9cc5a5),
+    (0xf3c76e, 0xecd98f),
+    (0xf7a385, 0xf2bc96),
+    (0xf092ab, 0xe8a1b1),
+    (0xbf94e6, 0xc3a0d8),
+    (0x6fc4c9, 0x86bfbf),
+    (0x9ea5b4, 0xaebcc3)
+];
+
+fn pastel_palette(conn: &Connection) -> DbResult<()> {
+    let done: Option<String> =
+        conn.query_row("SELECT value FROM settings WHERE key='palette.v2'", [], |r| r.get(0)).optional()?;
+    if done.is_some() {
+        return Ok(());
+    }
+    let tx = conn.unchecked_transaction()?;
+    for table in ["events", "ddays", "todo_groups", "memo_groups", "bookmark_folders", "tags"] {
+        for (old, new) in PASTEL_PALETTE {
+            tx.execute(&format!("UPDATE {table} SET color=?1 WHERE color=?2"), params![new, old])?;
+        }
+    }
+    tx.execute("INSERT OR REPLACE INTO settings(key, value) VALUES('palette.v2', '1')", [])?;
+    tx.commit()
+}
+
 /// Accepts `HH:MM` (or `HH:MM:SS`) and normalizes it to `HH:MM`.
 pub fn normalize_time(t: &str) -> Option<String> {
     chrono::NaiveTime::parse_from_str(t, "%H:%M")
@@ -699,6 +740,7 @@ impl Db {
         let conn = open_conn(path)?;
         conn.execute_batch(SCHEMA)?;
         migrate(&conn)?;
+        pastel_palette(&conn)?;
         Ok(Self { conn })
     }
 

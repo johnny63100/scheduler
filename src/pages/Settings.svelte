@@ -1,13 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getVersion } from '@tauri-apps/api/app';
-  import { openUrl } from '@tauri-apps/plugin-opener';
-  import { UPDATES_URL } from '../lib/links';
   import { background, saveBackground } from '../lib/background.svelte';
   import { checkForUpdates, openReleasePage, setAutoCheck, updates } from '../lib/updates.svelte';
   import { imageUrl, importImageFile } from '../lib/images';
   import {
-    AppWindow, ArrowDown, ArrowUp, Megaphone, Sparkles, Wallpaper, ImagePlus, RefreshCw, Trash2, Check, Database, GripVertical, PanelsTopLeft, RotateCcw, Download, Expand, Info, Languages, LoaderCircle, Monitor, Moon, Palette, Plus, Sun, SwatchBook,
+    AppWindow, ArrowDown, ArrowUp, Sparkles, Wallpaper, ImagePlus, RefreshCw, Trash2, Check, Database, GripVertical, PanelsTopLeft, RotateCcw, Download, Expand, Info, Languages, LoaderCircle, Monitor, Moon, Palette, Plus, Sun, SwatchBook,
     CalendarDays, PanelRight, Pipette, Trash, TriangleAlert, Upload, X, ZoomIn,
   } from '@lucide/svelte';
   import { calPrefs, setCalPrefs } from '../lib/calPrefs.svelte';
@@ -595,12 +593,7 @@
           <h2>{t('set.about')}</h2>
           <p class="muted small">{t('set.version', { v: appVersion || '…' })} · {t('set.aboutBody')}</p>
         </div>
-        <span class="spacer"></span>
-        <button class="btn" onclick={() => openUrl(UPDATES_URL).catch((e) => toast(String(e), 'error'))} title={UPDATES_URL}>
-          <Megaphone size={16} /> {t('set.updates')}
-        </button>
       </div>
-      <p class="faint small updates-hint">{t('set.updatesHint')}</p>
       <div class="version-check">
         <span class="vc-status small" class:newer={updates.status === 'newer'}>
           {#if updates.status === 'checking'}<span class="spin"><LoaderCircle size={14} /></span> {t('upd.checking')}

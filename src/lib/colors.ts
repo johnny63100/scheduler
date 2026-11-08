@@ -1,14 +1,15 @@
-// Soft, friendly palette. Colors are stored as 0xRRGGBB integers in the database.
+// Soft, muted pastel palette. Colors are stored as 0xRRGGBB integers in the database.
+// (Older saved colors from the previous, brighter palette are moved over once; see db.rs `pastel_palette`.)
 export const PALETTE: { name: string; value: number }[] = [
-  { name: 'Lavender', value: 0x7c74ff },
-  { name: 'Sky', value: 0x4aa8ff },
-  { name: 'Mint', value: 0x34c38f },
-  { name: 'Lemon', value: 0xf5b83d },
-  { name: 'Peach', value: 0xff8a5c },
-  { name: 'Rose', value: 0xf2668b },
-  { name: 'Grape', value: 0xb164e8 },
-  { name: 'Teal', value: 0x22b5bf },
-  { name: 'Slate', value: 0x7d8597 },
+  { name: 'Lavender', value: 0x9aa5e8 },
+  { name: 'Sky', value: 0x9fcfdc },
+  { name: 'Mint', value: 0x9cc5a5 },
+  { name: 'Lemon', value: 0xecd98f },
+  { name: 'Peach', value: 0xf2bc96 },
+  { name: 'Rose', value: 0xe8a1b1 },
+  { name: 'Grape', value: 0xc3a0d8 },
+  { name: 'Teal', value: 0x86bfbf },
+  { name: 'Slate', value: 0xaebcc3 },
 ];
 
 export const DEFAULT_COLOR = PALETTE[0].value;
@@ -38,7 +39,7 @@ export function textOn(n: number): string {
   const r = (n >> 16) & 255;
   const g = (n >> 8) & 255;
   const b = n & 255;
-  return (r * 299 + g * 587 + b * 114) / 1000 > 165 ? '#1e2232' : '#ffffff';
+  return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#1e2232' : '#ffffff';
 }
 
 /** `a` mixed into `b`: weight 1 gives `a`, 0 gives `b`. Both are 0xRRGGBB. */

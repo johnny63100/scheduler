@@ -66,7 +66,7 @@
 <div class="panel" class:collapsed>
   <header data-tauri-drag-region>
     <span class="logo" data-tauri-drag-region><CircleCheck size={15} strokeWidth={2.5} /></span>
-    <span class="name" data-tauri-drag-region>Nora</span>
+    <span class="name" data-tauri-drag-region>Holmes</span>
     <span class="spacer" data-tauri-drag-region></span>
     <button class="icon-btn" onclick={toggleOnTop} title={onTop ? t('panel.unpin') : t('panel.pin')} aria-pressed={onTop}>
       {#if onTop}<Pin size={15} />{:else}<PinOff size={15} />{/if}

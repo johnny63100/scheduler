@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Nora Schedule",
+  "productName": "Holmes",
   "version": "0.7.0",
   "identifier": "com.nora.schedule",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Nora Schedule",
+        "title": "Holmes",
         "width": 1280,
         "height": 840,
         "minWidth": 640,

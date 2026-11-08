@@ -43,7 +43,7 @@ const DAYS_AHEAD: i64 = 185;
 const HEALTH_DAYS: i64 = 14;
 /// Finished todos stay visible on the phone for this many days.
 const DONE_KEEP_DAYS: i64 = 3;
-const DEFAULT_COLOR: u32 = 0x7c74ff;
+const DEFAULT_COLOR: u32 = 0x9aa5e8;
 
 const DATA_EVENT: &str = "nora://data";
 const FROM_CLOUD: &str = "cloud";
@@ -780,5 +780,26 @@ mod tests {
         apply(&db, &item("save_expense", json!({ "id": id, "amount": 5000, "category": "cafe", "date": today, "note": "라떼 큰거", "kind": "expense" }))).unwrap();
         apply(&db, &item("delete_expense", json!({ "id": id }))).unwrap();
         assert_eq!(snapshot(&db).unwrap()["money"]["expenses"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn old_palette_colors_become_pastel_once() {
+        let path = std::env::temp_dir().join(format!("nora-pastel-{}.sqlite3", rand_suffix()));
+        let _ = std::fs::remove_file(&path);
+        {
+            let db = Db::open(&path).unwrap();
+            // Pretend this database predates the pastel palette.
+            db.conn.execute("DELETE FROM settings WHERE key='palette.v2'", []).unwrap();
+            db.conn.execute("INSERT INTO todo_groups(name, color) VALUES('a', ?1), ('b', 1193046)", [0x34c38fu32]).unwrap();
+        }
+        let db = Db::open(&path).unwrap();
+        let colors: Vec<u32> = db.todo_groups().unwrap().iter().map(|g| g.color).collect();
+        assert_eq!(colors, vec![0x9cc5a5, 1193046]);
+        // A color picked later that happens to equal an old value is left alone.
+        db.conn.execute("UPDATE todo_groups SET color=?1 WHERE name='b'", [0x34c38fu32]).unwrap();
+        drop(db);
+        let db = Db::open(&path).unwrap();
+        assert!(db.todo_groups().unwrap().iter().any(|g| g.color == 0x34c38f));
+        let _ = std::fs::remove_file(&path);
     }
 }
