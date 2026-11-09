@@ -112,7 +112,7 @@
   .cell.other { opacity: .35; }
   .month .week { position: relative; }
   .cell .lanes { display: block; flex: none; }
-  .span { position: absolute; height: 14px; line-height: 14px; font-size: 10px; padding: 0 4px; border-radius: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #1e2232; pointer-events: none; }
+  .span { position: absolute; height: 14px; line-height: 14px; font-size: 10px; padding: 0 3px; border-radius: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #1e2232; pointer-events: none; }
   .span.cont-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
   .span.cont-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
   .span.light { background: var(--surface-3) !important; color: var(--muted); }
@@ -728,7 +728,7 @@ function renderCalendar() {
       const cls = ['cell', day.slice(0, 7) !== calMonth ? 'other' : '', day === today ? 'today' : '', day === selectedDay ? 'sel' : '', i === 0 ? 'sun' : i === 6 ? 'sat' : ''].join(' ');
       const pills = singles.slice(0, room).map((x) => `<span class="pill ${x.e.cancelled ? 'light' : ''}" style="background:${hex(x.e.color)}">${esc(x.e.title)}</span>`).join('');
       const more = hidden > 0 ? `<span class="more-n">+${hidden}</span>` : '';
-      html += `<button class="${cls}" data-day="${day}"><span class="n">${date.getDate()}</span><span class="lanes" style="height:${Math.max(0, lanesHere * LANE - 2)}px"></span>${pills}${more}</button>`;
+      html += `<button class="${cls}" data-day="${day}"><span class="n">${date.getDate()}</span>${lanesHere ? `<span class="lanes" style="height:${lanesHere * LANE - 2}px"></span>` : ''}${pills}${more}</button>`;
     });
     for (const sp of shown) {
       const cls = ['span', sp.contL ? 'cont-l' : '', sp.contR ? 'cont-r' : '', sp.e.cancelled ? 'light' : ''].join(' ');
