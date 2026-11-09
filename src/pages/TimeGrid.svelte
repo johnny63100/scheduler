@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { MapPin, Repeat, Target } from '@lucide/svelte';
+  import { MapPin, Target } from '@lucide/svelte';
   import { eventMenu, moveEventWithUndo, pasteAsEvent, pointer, slotMenu } from '../lib/clipboard.svelte';
   import { eventHover, hideHoverCard } from '../lib/hovercard.svelte';
   import { isSecondaryClick, openMenu } from '../lib/menu.svelte';
@@ -67,16 +67,47 @@
     drag = null;
   }
 
-  const HOUR = 56;
+  /** Hour height: the shown hours fit the view without scrolling (scrolls only in a very short window). */
+  const MIN_HOUR = 18;
+  let viewHeight = $state(0);
+  // 00:00–06:00 is folded away unless the user opens it (click 06:00) or an event falls in it.
+  const EARLY_END = 6;
+  const EARLY_KEY = 'nora.timegrid.early';
+  let earlyOpen = $state(readEarly());
+  function readEarly() {
+    try {
+      return localStorage.getItem(EARLY_KEY) === 'open';
+    } catch {
+      return false;
+    }
+  }
+  const hasEarly = $derived(days.some((day) => timedFor(day).some((x) => x.s < EARLY_END * 60)));
+  const firstHour = $derived(earlyOpen || hasEarly ? 0 : EARLY_END);
+  const HOUR = $derived(Math.max(MIN_HOUR, (viewHeight - 2) / (24 - firstHour)));
+  function toggleEarly() {
+    if (hasEarly) return;
+    earlyOpen = !earlyOpen;
+    try {
+      localStorage.setItem(EARLY_KEY, earlyOpen ? 'open' : 'closed');
+    } catch {
+      /* not remembered; fine */
+    }
+  }
   let scroller: HTMLDivElement;
   let now = $state(new Date());
   const todayStr = $derived(today());
   const nowMinutes = $derived(now.getHours() * 60 + now.getMinutes());
 
   onMount(() => {
-    scroller.scrollTop = HOUR * 7.5;
+    const fit = () => (viewHeight = scroller.clientHeight);
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(scroller);
     const t = setInterval(() => (now = new Date()), 60_000);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      ro.disconnect();
+    };
   });
 
   // All-day and multi-day events run as continuous bars across the days they cover.
@@ -227,6 +258,7 @@
         <button
           class="chip event-block"
           class:cancelled={e.cancelled}
+          class:repeating={!!e.repeat}
           class:from-prev={b.fromPrev}
           class:to-next={b.toNext}
           class:dragged={moving?.active && moving.kind === 'lane' && sameEvent(moving.e, e)}
@@ -241,7 +273,6 @@
           oncontextmenu={(ev) => openMenu(ev, eventMenu(e, () => onopen(e)))}
         >
           <TagDots event={e} />
-          {#if e.repeat}<Repeat size={11} />{/if}
           <span class="truncate">{e.title}</span>
         </button>
       {/if}
@@ -249,10 +280,23 @@
   </div>
 
   <div class="scroll" bind:this={scroller}>
-    <div class="body" style:height="{HOUR * 24}px">
+    <div class="body" style:height="{HOUR * 24}px" style:margin-top="{-firstHour * HOUR}px">
       <div class="gutter">
         {#each Array.from({ length: 23 }, (_, i) => i + 1) as h (h)}
-          <span style:top="{h * HOUR}px">{pad(h)}:00</span>
+          {#if h === EARLY_END}
+            <button
+              class="early-toggle"
+              class:at-top={firstHour === EARLY_END}
+              class:locked={hasEarly}
+              style:top="{h * HOUR}px"
+              onclick={toggleEarly}
+              title={hasEarly ? t('cal.earlyLocked') : firstHour ? t('cal.earlyShow') : t('cal.earlyHide')}
+            >
+              {pad(h)}:00{#if !hasEarly}<i class="chev" class:up={!firstHour}>▾</i>{/if}
+            </button>
+          {:else if h > firstHour}
+            <span style:top="{h * HOUR}px">{pad(h)}:00</span>
+          {/if}
         {/each}
       </div>
       {#each days as day (day)}
@@ -278,6 +322,8 @@
             <button
               class="event event-block"
               class:cancelled={t.e.cancelled}
+              class:repeating={!!t.e.repeat}
+              class:short={((t.end - t.s) / 60) * HOUR - 3 < 36}
               class:dragged={moving?.active && moving.kind === 'timed' && sameEvent(moving.e, t.e)}
               style:--c={hex(eventColor(t.e))}
               style:--on-c={textOn(eventColor(t.e))}
@@ -291,7 +337,7 @@
               onpointerdown={(ev) => grabTimed(ev, t.e, day, t.s)}
               oncontextmenu={(ev) => openMenu(ev, eventMenu(t.e, () => onopen(t.e)))}
             >
-              <span class="ev-title"><TagDots event={t.e} />{#if t.e.repeat}<Repeat size={11} />{/if} {t.e.title}</span>
+              <span class="ev-title"><TagDots event={t.e} /> {t.e.title}</span>
               <span class="ev-time">{timeOf(t.e.start)} – {timeOf(t.e.end)}</span>
               {#if t.e.location}<span class="ev-time truncate loc"><MapPin size={11} /> {t.e.location}</span>{/if}
             </button>
@@ -448,6 +494,45 @@
     color: var(--faint);
     font-variant-numeric: tabular-nums;
   }
+  .early-toggle {
+    position: absolute;
+    right: 0;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border: 0;
+    background: none;
+    padding: 1px 4px;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .early-toggle.at-top {
+    transform: none;
+  }
+  .early-toggle:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  .early-toggle.locked {
+    cursor: default;
+    color: var(--faint);
+    background: none;
+  }
+  .chev {
+    display: inline-block;
+    font-style: normal;
+    font-size: 9px;
+    line-height: 1;
+    transition: transform 0.15s;
+  }
+  .chev.up {
+    transform: rotate(180deg);
+  }
   .col {
     position: relative;
     border-left: 1px solid var(--border);
@@ -476,6 +561,29 @@
   }
   .event:hover {
     z-index: 2;
+  }
+  /* Short events (the whole day fits on screen): title and time on one line. */
+  .event.short {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    padding: 0 7px;
+  }
+  .event.short .ev-title,
+  .event.short .ev-time {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .event.short .ev-title {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .event.short .ev-time {
+    flex: 0 10 auto;
+  }
+  .event.short .loc {
+    display: none;
   }
   .ev-title {
     font-size: 12.5px;

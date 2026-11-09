@@ -428,6 +428,9 @@ const exOf = (id) => EXERCISES.find((e) => e[0] === id) ?? [id, id, 4, '💪'];
 const PC_STALE_MS = 16 * 60 * 1000;
 
 const $ = (s) => document.querySelector(s);
+/** A slightly deeper shade of an event color, for the outline that marks repeating events. */
+const deeper = (n) => { const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((v, i) => Math.round(v * 0.68 + [0x1e, 0x22, 0x32][i] * 0.32)); return '#' + c.map((v) => v.toString(16).padStart(2, '0')).join(''); };
+const repStyle = (e) => (e.repeats ? `;outline:1.5px solid ${deeper(e.color)};outline-offset:-1.5px` : '');
 const hex = (n) => '#' + (n >>> 0).toString(16).padStart(6, '0').slice(-6);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const pad = (n) => String(n).padStart(2, '0');
@@ -738,13 +741,13 @@ function renderCalendar() {
       const room = Math.max(0, MAX_ROWS - lanesHere);
       const hidden = covering.filter((sp) => sp.lane >= MAX_ROWS).length + Math.max(0, singles.length - room);
       const cls = ['cell', day.slice(0, 7) !== calMonth ? 'other' : '', day === today ? 'today' : '', day === selectedDay ? 'sel' : '', i === 0 ? 'sun' : i === 6 ? 'sat' : ''].join(' ');
-      const pills = singles.slice(0, room).map((x) => `<span class="pill ${x.e.cancelled ? 'light' : ''}" style="background:${hex(x.e.color)}">${esc(x.e.title)}</span>`).join('');
+      const pills = singles.slice(0, room).map((x) => `<span class="pill ${x.e.cancelled ? 'light' : ''}" style="background:${hex(x.e.color)}${repStyle(x.e)}">${esc(x.e.title)}</span>`).join('');
       const more = hidden > 0 ? `<span class="more-n">+${hidden}</span>` : '';
       html += `<button class="${cls}" data-day="${day}"><span class="n">${date.getDate()}</span>${lanesHere ? `<span class="lanes" style="height:${lanesHere * LANE - 2}px"></span>` : ''}${pills}${more}</button>`;
     });
     for (const sp of shown) {
       const cls = ['span', sp.contL ? 'cont-l' : '', sp.contR ? 'cont-r' : '', sp.e.cancelled ? 'light' : ''].join(' ');
-      html += `<span class="${cls}" style="left:calc(${sp.from} * 100% / 7 + ${sp.contL ? 0 : 2}px);width:calc(${sp.to - sp.from + 1} * 100% / 7 - ${(sp.contL ? 0 : 2) + (sp.contR ? 0 : 2)}px);top:${29 + sp.lane * LANE}px;background:${hex(sp.e.color)}">${esc(sp.e.title)}</span>`;
+      html += `<span class="${cls}" style="left:calc(${sp.from} * 100% / 7 + ${sp.contL ? 0 : 2}px);width:calc(${sp.to - sp.from + 1} * 100% / 7 - ${(sp.contL ? 0 : 2) + (sp.contR ? 0 : 2)}px);top:${29 + sp.lane * LANE}px;background:${hex(sp.e.color)}${repStyle(sp.e)}">${esc(sp.e.title)}</span>`;
     }
     html += '</div>';
     d = addDays(d, 7);
@@ -809,10 +812,10 @@ function eventRow(e, d) {
   else if (sd < d) time = `~${e.end.slice(11, 16)}`;
   else time = e.start.slice(11, 16);
   const meta = [e.location && `📍 ${esc(e.location)}`, !e.all_day && sd === d && ed === d ? `${e.start.slice(11, 16)}–${e.end.slice(11, 16)}` : '', esc(e.memo).slice(0, 160)].filter(Boolean).join('\n');
-  const chip = e.error ? '<span class="chip err">실패</span>' : e.pending ? '<span class="chip">PC 반영 대기</span>' : e.repeats ? '<span class="chip">반복</span>' : '';
+  const chip = e.error ? '<span class="chip err">실패</span>' : e.pending ? '<span class="chip">PC 반영 대기</span>' : '';
   const editable = typeof e.id === 'number';
   const idx = editable ? shownEvents.push(e) - 1 : -1;
-  return `<div class="ev ${e.cancelled ? 'cancelled' : ''}" ${editable ? `data-ev="${idx}"` : ''}><span class="bar" style="background:${hex(e.color)}"></span><span class="time">${time}</span><div class="body"><div class="title">${esc(e.title)}${chip}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</div></div>`;
+  return `<div class="ev ${e.cancelled ? 'cancelled' : ''}" ${editable ? `data-ev="${idx}"` : ''}><span class="bar" style="background:${hex(e.color)}${e.repeats ? `;box-shadow:inset 0 0 0 1px ${deeper(e.color)}` : ''}"></span><span class="time">${time}</span><div class="body"><div class="title">${esc(e.title)}${chip}</div>${meta ? `<div class="meta">${meta}</div>` : ''}</div></div>`;
 }
 
 function todoDueRow(t) {

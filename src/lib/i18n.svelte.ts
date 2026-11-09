@@ -82,6 +82,9 @@ const en = {
   'cal.addSomething': 'Add something',
   'cal.upcomingDdays': 'Upcoming D-Days',
   'cal.allDayLane': 'all-day',
+  'cal.earlyShow': 'Show 00:00–06:00',
+  'cal.earlyHide': 'Hide 00:00–06:00',
+  'cal.earlyLocked': 'Shown because something is planned before 06:00',
   'cal.more': '+{n} more',
   'cal.openDay': 'Open this day',
 
@@ -1352,6 +1355,9 @@ const ko: Record<Key, string> = {
   'cal.addSomething': '일정 추가',
   'cal.upcomingDdays': '다가오는 디데이',
   'cal.allDayLane': '종일',
+  'cal.earlyShow': '0시~6시 펼치기',
+  'cal.earlyHide': '0시~6시 접기',
+  'cal.earlyLocked': '6시 전에 일정이 있어서 펼쳐져 있어요',
   'cal.more': '+{n}개 더',
   'cal.openDay': '이 날 보기',
 

@@ -791,6 +791,11 @@ input[type='time'] {
 .event-block:hover {
   filter: brightness(1.07);
 }
+/* Repeating events: a slightly deeper outline of their own color instead of a repeat icon. */
+.event-block.repeating {
+  outline: 1.5px solid color-mix(in srgb, var(--c) 68%, #1e2232);
+  outline-offset: -1.5px;
+}
 .event-block.cancelled {
   opacity: 0.5;
 }

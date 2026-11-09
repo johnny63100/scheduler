@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CalendarDays, Repeat, Target } from '@lucide/svelte';
+  import { CalendarDays, Target } from '@lucide/svelte';
   import { eventMenu, moveEventWithUndo, pasteAsEvent, pasteOnHover, slotMenu } from '../lib/clipboard.svelte';
   import { eventHover, hideHoverCard, showHoverCard } from '../lib/hovercard.svelte';
   import { isSecondaryClick, openMenu } from '../lib/menu.svelte';
@@ -172,6 +172,7 @@
               {@const e = b.e}
               <button
                 class="chip event-block"
+                class:repeating={!!e.repeat}
                 class:cancelled={e.cancelled}
                 class:from-prev={b.fromPrev}
                 class:to-next={b.toNext}
@@ -186,7 +187,6 @@
                 onpointerdown={(ev) => grab(ev, e)}
                 oncontextmenu={(ev) => openMenu(ev, eventMenu(e, () => onopen(e)))}
               >
-                {#if e.repeat}<Repeat size={11} />{/if}
                 <TagDots event={e} />
                 {#if !isAllDayLane(e)}<span class="time">{timeOf(e.start)}</span>{/if}
                 <span class="truncate">{e.title}</span>

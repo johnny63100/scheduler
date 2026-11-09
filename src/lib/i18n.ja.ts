@@ -78,6 +78,9 @@ export const ja: Record<Key, string> = {
   'cal.addSomething': '予定を追加',
   'cal.upcomingDdays': 'もうすぐのDデイ',
   'cal.allDayLane': '終日',
+  'cal.earlyShow': '0時〜6時を表示',
+  'cal.earlyHide': '0時〜6時を隠す',
+  'cal.earlyLocked': '6時前に予定があるので表示しています',
   'cal.more': '他{n}件',
   'cal.openDay': 'この日を開く',
 

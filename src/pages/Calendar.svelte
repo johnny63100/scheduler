@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { CalendarPlus, ChevronLeft, ChevronRight, Table2, X, Leaf, MapPin, Repeat, Settings2, Tags, Target } from '@lucide/svelte';
+  import { CalendarPlus, ChevronLeft, ChevronRight, Table2, X, Leaf, MapPin, Settings2, Tags, Target } from '@lucide/svelte';
   import MiniCalendar from '../components/MiniCalendar.svelte';
   import MonthView from './MonthView.svelte';
   import TimeGrid from './TimeGrid.svelte';
@@ -201,6 +201,7 @@
         <button
           class="agenda-item event-block"
           class:cancelled={e.cancelled}
+          class:repeating={!!e.repeat}
           style:--c={hex(eventColor(e))}
           style:--on-c={textOn(eventColor(e))}
           onclick={() => (editing = e)}
@@ -208,7 +209,7 @@
           oncontextmenu={(ev) => openMenu(ev, eventMenu(e, () => (editing = e)))}
         >
           <span class="info">
-            <span class="ag-title truncate">{#if e.repeat}<Repeat size={12} />{/if} {e.title}</span>
+            <span class="ag-title truncate">{e.title}</span>
             <span class="sub small">{isAllDayLane(e) ? t('common.allDay') : `${timeOf(e.start)} – ${timeOf(e.end)}`}</span>
             {#if e.location}<span class="sub small row truncate"><MapPin size={12} /> {e.location}</span>{/if}
             {#if tagsOf(e).length}<span class="sub small truncate">{tagsOf(e).map((tag) => '#' + tag.name).join(' ')}</span>{/if}
