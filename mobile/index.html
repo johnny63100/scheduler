@@ -110,6 +110,12 @@
   .cell { min-height: 64px; border: 0; background: none; padding: 3px 1px 2px; display: flex; flex-direction: column; align-items: stretch; gap: 2px; border-radius: 10px; min-width: 0; text-align: left; }
   .cell .n { align-self: center; font-size: 13px; font-weight: 600; width: 24px; height: 24px; line-height: 24px; text-align: center; border-radius: 50%; }
   .cell.other { opacity: .35; }
+  .month .week { position: relative; }
+  .cell .lanes { display: block; flex: none; }
+  .span { position: absolute; height: 14px; line-height: 14px; font-size: 10px; padding: 0 4px; border-radius: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #1e2232; pointer-events: none; }
+  .span.cont-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+  .span.cont-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .span.light { background: var(--surface-3) !important; color: var(--muted); }
   .cell.today .n { background: var(--primary-soft); color: var(--primary); }
   .cell.sel { background: var(--surface-2); }
   .cell.sel .n { background: var(--primary); color: var(--on-primary); }
@@ -283,7 +289,6 @@
   <nav class="tabs">
     <button data-tab="calendar" class="on">일정</button>
     <button data-tab="todos">할 일</button>
-    <button data-tab="health">식단</button>
     <button data-tab="money">가계부</button>
   </nav>
   <button class="fab" id="b-add" aria-label="추가"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -681,20 +686,56 @@ function renderCalendar() {
     <button class="today-btn" data-cal="today">오늘</button>
     <button data-cal="-1" aria-label="이전 달">‹</button><button data-cal="1" aria-label="다음 달">›</button></div>`;
   html += '<div class="month"><div class="dows">' + DOW.map((x) => `<span>${x}</span>`).join('') + '</div>';
+  const MAX_ROWS = 3;      // bars + pills shown per day
+  const LANE = 16;         // px per bar row
   for (let w = 0; w < 6; w++) {
     if (w >= 4 && d.slice(0, 7) !== calMonth) break;
+    const days = Array.from({ length: 7 }, (_, i) => addDays(d, i));
+    // Events spanning several days become one bar across the week, like the PC calendar.
+    const seen = new Set();
+    const spans = [];
+    for (const day of days) {
+      for (const x of byDay.get(day) ?? []) {
+        if (x.type !== 'event') continue;
+        const all = eventDays(x.e);
+        if (all.length < 2) continue;
+        const key = `${x.e.id}|${x.e.occurrence ?? ''}|${x.e.start}|${x.e.title}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const s0 = days.indexOf(all[0]), s1 = days.indexOf(all[all.length - 1]);
+        spans.push({ e: x.e, key, from: s0 < 0 ? 0 : s0, to: s1 < 0 ? 6 : s1, contL: s0 < 0, contR: s1 < 0 });
+      }
+    }
+    spans.sort((a, b) => a.from - b.from || (b.to - b.from) - (a.to - a.from));
+    const laneEnd = [];
+    for (const sp of spans) {
+      let lane = laneEnd.findIndex((end) => end < sp.from);
+      if (lane < 0) { lane = laneEnd.length; laneEnd.push(-1); }
+      laneEnd[lane] = sp.to;
+      sp.lane = lane;
+    }
+    const shown = spans.filter((sp) => sp.lane < MAX_ROWS);
     html += '<div class="week">';
-    for (let i = 0; i < 7; i++) {
-      const date = parseYmd(d);
-      const items = byDay.get(d) ?? [];
+    days.forEach((day, i) => {
+      const date = parseYmd(day);
+      const items = byDay.get(day) ?? [];
       const evs = items.filter((x) => x.type === 'event');
-      const cls = ['cell', d.slice(0, 7) !== calMonth ? 'other' : '', d === today ? 'today' : '', d === selectedDay ? 'sel' : '', i === 0 ? 'sun' : i === 6 ? 'sat' : ''].join(' ');
-      const pills = evs.slice(0, 3).map((x) => `<span class="pill ${x.e.cancelled ? 'light' : ''}" style="background:${hex(x.e.color)}">${esc(x.e.title)}</span>`).join('');
-      const more = evs.length > 3 ? `<span class="more-n">+${evs.length - 3}</span>` : '';
-      html += `<button class="${cls}" data-day="${d}"><span class="n">${date.getDate()}</span>${pills}${more}</button>`;
-      d = addDays(d, 1);
+      const covering = spans.filter((sp) => sp.from <= i && i <= sp.to);
+      const lanesHere = covering.filter((sp) => sp.lane < MAX_ROWS).reduce((m, sp) => Math.max(m, sp.lane + 1), 0);
+      const singles = evs.filter((x) => eventDays(x.e).length < 2);
+      const room = Math.max(0, MAX_ROWS - lanesHere);
+      const hidden = covering.filter((sp) => sp.lane >= MAX_ROWS).length + Math.max(0, singles.length - room);
+      const cls = ['cell', day.slice(0, 7) !== calMonth ? 'other' : '', day === today ? 'today' : '', day === selectedDay ? 'sel' : '', i === 0 ? 'sun' : i === 6 ? 'sat' : ''].join(' ');
+      const pills = singles.slice(0, room).map((x) => `<span class="pill ${x.e.cancelled ? 'light' : ''}" style="background:${hex(x.e.color)}">${esc(x.e.title)}</span>`).join('');
+      const more = hidden > 0 ? `<span class="more-n">+${hidden}</span>` : '';
+      html += `<button class="${cls}" data-day="${day}"><span class="n">${date.getDate()}</span><span class="lanes" style="height:${Math.max(0, lanesHere * LANE - 2)}px"></span>${pills}${more}</button>`;
+    });
+    for (const sp of shown) {
+      const cls = ['span', sp.contL ? 'cont-l' : '', sp.contR ? 'cont-r' : '', sp.e.cancelled ? 'light' : ''].join(' ');
+      html += `<span class="${cls}" style="left:calc(${sp.from} * 100% / 7 + ${sp.contL ? 0 : 2}px);width:calc(${sp.to - sp.from + 1} * 100% / 7 - ${(sp.contL ? 0 : 2) + (sp.contR ? 0 : 2)}px);top:${29 + sp.lane * LANE}px;background:${hex(sp.e.color)}">${esc(sp.e.title)}</span>`;
     }
     html += '</div>';
+    d = addDays(d, 7);
   }
   html += '</div>';
   const sel = parseYmd(selectedDay);
