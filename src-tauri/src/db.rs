@@ -143,6 +143,14 @@ CREATE TABLE IF NOT EXISTS expenses (
 );
 CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
 
+CREATE TABLE IF NOT EXISTS stickies (
+    id         INTEGER PRIMARY KEY,
+    text       TEXT    NOT NULL,
+    color      INTEGER NOT NULL,
+    position   INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS tags (
     id       INTEGER PRIMARY KEY,
     name     TEXT    NOT NULL,

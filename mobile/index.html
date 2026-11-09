@@ -166,6 +166,16 @@
   .input.amount { font-size: 24px; font-weight: 800; text-align: right; }
   .mode-btn { border: 0; background: var(--surface); border-radius: 999px; padding: 0 12px; height: 34px; font-size: 13px; font-weight: 600; white-space: nowrap; flex: none; }
 
+  /* ---- one-line notes */
+  .memo-add { display: flex; gap: 8px; margin: 2px 0 14px; }
+  .memo-add .input { flex: 1; min-width: 0; }
+  .memo-add .btn { width: auto; margin: 0; padding: 0 18px; font-size: 15px; }
+  .memo { display: flex; align-items: flex-start; gap: 10px; padding: 12px 12px 12px 14px; }
+  .memo + .memo { border-top: 1px solid var(--surface-2); }
+  .memo .t { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+  .memo .x { flex: none; border: 0; background: none; color: var(--faint); font-size: 18px; line-height: 1; padding: 2px 4px; }
+  .memo .x.armed { color: var(--danger); font-size: 13px; font-weight: 700; }
+
   /* ---- todos */
   .group { margin-bottom: 16px; }
   .group h3 { display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 0 4px 6px; }
@@ -285,10 +295,12 @@
     <section id="p-todos" hidden></section>
     <section id="p-health" hidden></section>
     <section id="p-money" hidden></section>
+    <section id="p-notes" hidden></section>
   </main>
   <nav class="tabs">
     <button data-tab="calendar" class="on">일정</button>
     <button data-tab="todos">할 일</button>
+    <button data-tab="notes">메모</button>
     <button data-tab="money">가계부</button>
   </nav>
   <button class="fab" id="b-add" aria-label="추가"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -565,7 +577,7 @@ function render() {
   shownEvents = [];
   shownHealth = [];
   shownMoney = [];
-  ({ calendar: renderCalendar, events: renderEvents, todos: renderTodos, health: renderHealth, money: renderMoney })[tab]();
+  ({ calendar: renderCalendar, events: renderEvents, todos: renderTodos, health: renderHealth, money: renderMoney, notes: renderNotes })[tab]();
 }
 
 function ago(ms) {
@@ -578,7 +590,7 @@ function ago(ms) {
 }
 
 function renderHeader() {
-  $('#h-title').textContent = { calendar: '일정', events: '일정', todos: '할 일', health: '식단·운동', money: '가계부' }[tab];
+  $('#h-title').textContent = { calendar: '일정', events: '일정', todos: '할 일', health: '식단·운동', money: '가계부', notes: '메모' }[tab];
   const banner = $('#banner');
   if (!snapshot) {
     $('#h-sync').textContent = 'PC에서 아직 올린 내용이 없어요';
@@ -938,6 +950,54 @@ function renderMoney() {
   el.innerHTML = html;
 }
 
+/** One-line notes (the PC's Stickies), newest first, with the phone's unapplied adds and deletes. */
+function allNotes() {
+  let list = (snapshot?.stickies ?? []).map((n) => ({ ...n }));
+  for (const r of pending()) {
+    if (r.error) continue;
+    if (r.kind === 'delete_sticky') list = list.filter((n) => n.id !== r.payload.id);
+    else if (r.kind === 'add_sticky') list.unshift({ id: 'p' + r.id, text: r.payload.text, pending: !r.applied_at });
+  }
+  return list;
+}
+
+let armedNote = null;
+function renderNotes() {
+  const el = $('#p-notes');
+  if (snapshot && !snapshot.stickies) { el.innerHTML = '<div class="empty">PC 앱을 업데이트하면 메모가 나타나요</div>'; return; }
+  const keep = $('#memo-input')?.value ?? '';
+  const list = allNotes();
+  let html = `<div class="memo-add"><input id="memo-input" class="input" placeholder="한 줄 메모" maxlength="500" enterkeyhint="done" autocomplete="off" /><button class="btn" id="memo-add" type="button">추가</button></div>`;
+  html += list.length
+    ? '<div class="card">' + list.map((n) => `<div class="memo"><span class="t">${esc(n.text)}${n.pending ? '<span class="chip">PC 반영 대기</span>' : ''}</span>${typeof n.id === 'number' ? `<button class="x ${armedNote === n.id ? 'armed' : ''}" data-delnote="${n.id}" aria-label="삭제">${armedNote === n.id ? '삭제' : '×'}</button>` : ''}</div>`).join('') + '</div>'
+    : '<div class="empty">메모가 없어요</div>';
+  el.innerHTML = html;
+  $('#memo-input').value = keep;
+}
+
+async function addNote() {
+  const input = $('#memo-input');
+  const text = input.value.trim();
+  if (!text) return input.focus();
+  input.value = '';
+  if (!(await send('add_sticky', { text }))) input.value = text;
+  $('#memo-input')?.focus();
+}
+
+$('#p-notes').addEventListener('click', async (e) => {
+  if (e.target.closest('#memo-add')) return addNote();
+  const del = e.target.closest('[data-delnote]');
+  if (!del) { if (armedNote !== null) { armedNote = null; renderNotes(); } return; }
+  const id = Number(del.dataset.delnote);
+  if (armedNote !== id) { armedNote = id; return renderNotes(); }
+  armedNote = null;
+  const note = (snapshot?.stickies ?? []).find((n) => n.id === id);
+  await send('delete_sticky', { id, title: note?.text });
+});
+$('#p-notes').addEventListener('keydown', (e) => {
+  if (e.target.id === 'memo-input' && e.key === 'Enter' && !e.isComposing) { e.preventDefault(); addNote(); }
+});
+
 function todoRow(t, g, today, sub = false) {
   let due = '';
   if (t.due) {
@@ -959,7 +1019,7 @@ function goTab(t) {
   tab = t;
   const navTab = t === 'events' ? 'calendar' : t;
   document.querySelectorAll('nav.tabs button').forEach((x) => x.classList.toggle('on', x.dataset.tab === navTab));
-  for (const id of ['calendar', 'events', 'todos', 'health', 'money']) $('#p-' + id).hidden = id !== t;
+  for (const id of ['calendar', 'events', 'todos', 'health', 'money', 'notes']) $('#p-' + id).hidden = id !== t;
   window.scrollTo({ top: 0 });
   render();
 }
@@ -1230,6 +1290,7 @@ $('#workout-delete').onclick = async () => {
 function openSheet(ev = null) {
   if (tab === 'health' && !ev) return openHealthSheet('meal');
   if (tab === 'money' && !ev) return openMoneySheet('expense');
+  if (tab === 'notes' && !ev) { $('#memo-input')?.focus(); return; }
   editingHealth = null; editingMoney = null;
   showKinds(['event', 'todo']);
   const f = $('#f-event');

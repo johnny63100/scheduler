@@ -44,6 +44,8 @@ const HEALTH_DAYS: i64 = 14;
 /// Finished todos stay visible on the phone for this many days.
 const DONE_KEEP_DAYS: i64 = 3;
 const DEFAULT_COLOR: u32 = 0xc3c8f4;
+/// Notes added on the phone get the butter-yellow of a classic sticky note.
+const STICKY_COLOR: u32 = 0xf6ebb8;
 
 const DATA_EVENT: &str = "nora://data";
 const FROM_CLOUD: &str = "cloud";
@@ -343,6 +345,7 @@ fn snapshot(db: &Db) -> db::DbResult<Value> {
         "version": 1,
         "health": health,
         "money": money,
+        "stickies": db.stickies()?,
         "generated_at": chrono::Utc::now().to_rfc3339(),
         "today": today,
         "from": from,
@@ -587,6 +590,20 @@ fn apply(db: &Db, item: &InboxItem) -> Result<(), String> {
             x.note = x.note.trim().into();
             db.save_expense(&x).map(|_| ()).map_err(|e| e.to_string())
         }
+        "add_sticky" => {
+            #[derive(Deserialize)]
+            struct NewSticky {
+                text: String,
+                color: Option<u32>,
+            }
+            let n: NewSticky = parse(&item.payload)?;
+            let text = crate::stickies::clean(&n.text).ok_or("메모가 비어 있어요")?;
+            db.add_sticky(&text, n.color.unwrap_or(STICKY_COLOR)).map(|_| ()).map_err(|e| e.to_string())
+        }
+        "delete_sticky" => {
+            let r: ById = parse(&item.payload)?;
+            db.delete_sticky(r.id).map_err(|e| e.to_string())
+        }
         "delete_expense" => {
             let r: ById = parse(&item.payload)?;
             db.delete_expense(r.id).map(|_| ()).map_err(|e| e.to_string())
@@ -801,5 +818,22 @@ mod tests {
         let db = Db::open(&path).unwrap();
         assert!(db.todo_groups().unwrap().iter().any(|g| g.color == 0x34c38f));
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn phone_adds_and_removes_one_line_notes() {
+        let db = temp_db();
+        apply(&db, &item("add_sticky", json!({ "text": "  우유 사기  " }))).unwrap();
+        apply(&db, &item("add_sticky", json!({ "text": "세션 BGM 확인", "color": 0xc3c8f4u32 }))).unwrap();
+        assert!(apply(&db, &item("add_sticky", json!({ "text": "   " }))).is_err());
+        let list = snapshot(&db).unwrap()["stickies"].as_array().unwrap().clone();
+        assert_eq!(list.len(), 2);
+        assert_eq!(list[0]["text"], "세션 BGM 확인"); // newest first
+        assert_eq!(list[1]["text"], "우유 사기");
+        assert_eq!(list[1]["color"], STICKY_COLOR);
+        db.reorder_stickies(&[list[1]["id"].as_i64().unwrap(), list[0]["id"].as_i64().unwrap()]).unwrap();
+        assert_eq!(db.stickies().unwrap()[0].text, "우유 사기");
+        apply(&db, &item("delete_sticky", json!({ "id": list[1]["id"] }))).unwrap();
+        assert_eq!(db.stickies().unwrap().len(), 1);
     }
 }

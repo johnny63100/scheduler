@@ -105,6 +105,12 @@ export function installMock() {
     todo(6, 'Call mom', null, null, true),
     todo(7, 'Renew passport', 2, null, false, addDays(t, -1)),
   ];
+  let stickies: { id: number; text: string; color: number; created_at: number }[] = [
+    { id: 1, text: '세션 끝나고 로그 백업하기', color: 0xf6ebb8, created_at: 0 },
+    { id: 2, text: '우유, 계란, 두부', color: 0xc4e3cc, created_at: 0 },
+    { id: 3, text: '토요일 PT 7시로 변경', color: 0xf3c6d2, created_at: 0 },
+    { id: 4, text: '컴활 기출 2023년 2회 다시 풀기', color: 0xc3c8f4, created_at: 0 },
+  ];
   const memos: Memo[] = [
     { id: 1, title: 'Weekly sync', body: '# Weekly sync\n\n- [x] Review roadmap\n- [ ] Plan **Q4** goals\n\n> Keep it simple.\n\n```rust\nfn main() {}\n```\n\n한국어도 잘 보입니다.', created_at: now, updated_at: now, group_id: 1 },
     { id: 2, title: 'Ideas', body: 'A calm, friendly scheduler.', created_at: now - 3600, updated_at: now - 3600, group_id: null },
@@ -309,6 +315,11 @@ export function installMock() {
         mark(a.id); return null;
       }
       case 'delete_todo': { const drop = (id: number) => { todos.filter((c) => c.parent_id === id).forEach((c) => drop(c.id)); todos.splice(todos.findIndex((x) => x.id === id), 1); }; drop(a.id); return null; }
+      case 'stickies': return [...stickies];
+      case 'add_sticky': { const id = Math.max(0, ...stickies.map((s) => s.id)) + 1; stickies.unshift({ id, text: a.text, color: a.color, created_at: 0 }); return id; }
+      case 'update_sticky': { const s = stickies.find((x) => x.id === a.id); if (s) { s.text = a.text; s.color = a.color; } return null; }
+      case 'delete_sticky': stickies = stickies.filter((x) => x.id !== a.id); return null;
+      case 'reorder_stickies': stickies = (a.ids as number[]).map((id) => stickies.find((x) => x.id === id)!).filter(Boolean); return null;
       case 'memos': return [...memos].sort((x, y) => y.updated_at - x.updated_at);
       case 'create_memo': memos.push({ id: nextId, title: a.title, body: '', created_at: now, updated_at: Date.now() / 1000, group_id: a.groupId ?? null }); return nextId++;
       case 'set_memo_group': memos.find((m) => m.id === a.id)!.group_id = a.groupId; return null;

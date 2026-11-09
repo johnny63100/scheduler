@@ -70,6 +70,35 @@ pub fn set_setting(state: State<AppState>, key: String, value: String) -> CmdRes
     with_db(&state, |db| db.set_setting(&key, &value))
 }
 
+// ---- stickies -----------------------------------------------------------------
+
+#[tauri::command]
+pub fn stickies(state: State<AppState>) -> CmdResult<Vec<crate::stickies::Sticky>> {
+    with_db(&state, |db| db.stickies())
+}
+
+#[tauri::command]
+pub fn add_sticky(state: State<AppState>, text: String, color: u32) -> CmdResult<i64> {
+    let text = crate::stickies::clean(&text).ok_or("메모가 비어 있어요")?;
+    with_db(&state, |db| db.add_sticky(&text, color))
+}
+
+#[tauri::command]
+pub fn update_sticky(state: State<AppState>, id: i64, text: String, color: u32) -> CmdResult<()> {
+    let text = crate::stickies::clean(&text).ok_or("메모가 비어 있어요")?;
+    with_db(&state, |db| db.update_sticky(id, &text, color))
+}
+
+#[tauri::command]
+pub fn delete_sticky(state: State<AppState>, id: i64) -> CmdResult<()> {
+    with_db(&state, |db| db.delete_sticky(id))
+}
+
+#[tauri::command]
+pub fn reorder_stickies(state: State<AppState>, ids: Vec<i64>) -> CmdResult<()> {
+    with_db(&state, |db| db.reorder_stickies(&ids))
+}
+
 // ---- cloud sync (phone) ------------------------------------------------------
 
 #[tauri::command]

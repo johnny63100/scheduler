@@ -303,6 +303,14 @@ export interface BackupManifest {
   counts: { events: number; todos: number; memos: number; ddays: number; bookmarks: number; expenses: number; trpg?: number; books?: number; meals?: number; workouts?: number; commissions?: number; diary?: number; images: number };
 }
 
+/** A one-line note on the Stickies board. */
+export interface Sticky {
+  id: number;
+  text: string;
+  color: number;
+  created_at: number;
+}
+
 export interface Memo {
   id: number;
   title: string;
@@ -472,6 +480,11 @@ export const api = {
   saveBook: (book: Book) => invoke<number>('save_book', { book }),
   deleteBook: (id: number) => invoke<Book | null>('delete_book', { id }),
 
+  stickies: () => invoke<Sticky[]>('stickies'),
+  addSticky: (text: string, color: number) => invoke<number>('add_sticky', { text, color }),
+  updateSticky: (id: number, text: string, color: number) => invoke<void>('update_sticky', { id, text, color }),
+  deleteSticky: (id: number) => invoke<void>('delete_sticky', { id }),
+  reorderStickies: (ids: number[]) => invoke<void>('reorder_stickies', { ids }),
   memos: () => invoke<Memo[]>('memos'),
   createMemo: (title: string, groupId: number | null = null) => invoke<number>('create_memo', { title, groupId }),
   setMemoGroup: (id: number, groupId: number | null) => invoke<void>('set_memo_group', { id, groupId }),

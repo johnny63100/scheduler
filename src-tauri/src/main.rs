@@ -15,6 +15,7 @@ mod reading;
 mod recurrence;
 mod reminders;
 mod routines;
+mod stickies;
 mod tracker;
 mod updates;
 mod trpg;
@@ -121,6 +122,11 @@ fn main() {
             panel::panel_show_main,
             panel::set_autostart,
             commands::get_setting,
+            commands::stickies,
+            commands::add_sticky,
+            commands::update_sticky,
+            commands::delete_sticky,
+            commands::reorder_stickies,
             commands::cloud_status,
             commands::cloud_sign_in,
             commands::cloud_sign_out,

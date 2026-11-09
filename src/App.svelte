@@ -34,6 +34,7 @@
   import TimerPage from './pages/Timer.svelte';
   import { timer } from './lib/timer.svelte';
   import Memos from './pages/Memos.svelte';
+  import Stickies from './pages/Stickies.svelte';
   import Diary from './pages/Diary.svelte';
   import Tracking from './pages/Tracking.svelte';
   import Analytics from './pages/Analytics.svelte';
@@ -325,6 +326,7 @@
         {:else if ui.page === 'pomodoro'}<Pomodoro />
         {:else if ui.page === 'timer'}<TimerPage />
         {:else if ui.page === 'memos'}<Memos />
+        {:else if ui.page === 'stickies'}<Stickies />
         {:else if ui.page === 'diary'}<Diary />
         {:else if ui.page === 'tracking'}<Tracking />
         {:else if ui.page === 'analytics'}<Analytics />
