@@ -1,0 +1,225 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+mod backup;
+mod bookmarks;
+mod cloud;
+mod commands;
+mod commissions;
+mod db;
+mod diary;
+mod expenses;
+mod fixed;
+mod health;
+mod images;
+mod panel;
+mod reading;
+mod recurrence;
+mod reminders;
+mod routines;
+mod stickies;
+mod tracker;
+mod updates;
+mod trpg;
+
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+
+use tauri::Manager;
+use tauri_plugin_window_state::StateFlags;
+
+pub struct AppState {
+    pub db: Mutex<db::Db>,
+    pub tracker: Arc<tracker::TrackerShared>,
+    pub images_dir: PathBuf,
+    /// Folder holding the database and images (backups are staged here).
+    pub data_dir: PathBuf,
+}
+
+/// Serves stored D-Day images to the webview as `noraimg://localhost/<file>`
+/// (`http://noraimg.localhost/<file>` on Windows). Only names we generated are served.
+fn serve_image(app: &tauri::AppHandle, request: tauri::http::Request<Vec<u8>>) -> tauri::http::Response<Vec<u8>> {
+    let name = request.uri().path().trim_start_matches('/');
+    let file = app
+        .try_state::<AppState>()
+        .filter(|_| images::is_safe_name(name))
+        .and_then(|state| std::fs::read(state.images_dir.join(name)).ok());
+    let builder = tauri::http::Response::builder();
+    match file {
+        Some(bytes) => builder
+            .header("Content-Type", images::content_type(name))
+            .header("Cache-Control", "max-age=31536000, immutable")
+            .body(bytes),
+        None => builder.status(404).body(Vec::new()),
+    }
+    .unwrap_or_default()
+}
+
+fn main() {
+    tauri::Builder::default()
+        // Registered first: a second launch (e.g. the sign-in entry while the app is open) is
+        // handed to the running app instead of starting another copy.
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| panel::on_second_instance(app, args)))
+        // Sign-in start opens just the overlay panel.
+        .plugin(tauri_plugin_autostart::Builder::new().args([panel::START_ARG]).build())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_dialog::init())
+        // Updates come from this fork's GitHub releases (see plugins.updater in tauri.conf.json).
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
+        // Reopen at the size and position the window had when the app was last closed.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED)
+                // The panel stores its own position (see panel.rs).
+                .with_denylist(&[panel::LABEL])
+                .build(),
+        )
+        .on_window_event(panel::on_window_event)
+        .register_uri_scheme_protocol("noraimg", |ctx, request| serve_image(ctx.app_handle(), request))
+        .setup(|app| {
+            // NORA_DATA_DIR lets you point the app at a scratch database while developing.
+            let dir = match std::env::var_os("NORA_DATA_DIR") {
+                Some(dir) => dir.into(),
+                None => app.path().app_data_dir()?,
+            };
+            std::fs::create_dir_all(&dir)?;
+            // Finish an import or "delete all data" requested before the restart.
+            if let Err(e) = backup::apply_pending(&dir) {
+                eprintln!("could not apply pending import/reset: {e}");
+            }
+            let db_path = dir.join(backup::DB_FILE);
+            let db = db::Db::open(&db_path)?;
+            let images_dir = dir.join("images");
+            // Clean up images left behind by an interrupted edit.
+            if let Ok(keep) = db.referenced_images() {
+                images::collect_garbage(&images_dir, &keep);
+            }
+            reminders::start(app.handle().clone(), db_path.clone());
+            app.manage(cloud::start(app.handle().clone(), db_path.clone()));
+            let tracker = tracker::start(db_path, tracker::TrackerSettings::load(&db));
+            app.manage(AppState { db: Mutex::new(db), tracker, images_dir, data_dir: dir });
+
+            // The main window starts hidden (tauri.conf.json). Started from sign-in, only the panel
+            // shows; otherwise the main window does, plus the panel if it was left on.
+            let handle = app.handle().clone();
+            let panel_start = std::env::args().any(|a| a == panel::START_ARG);
+            let panel_shown = (panel_start || panel::enabled(&handle))
+                && panel::open(&handle).map_err(|e| eprintln!("could not open the panel: {e}")).is_ok();
+            if !(panel_start && panel_shown)
+                && let Some(main) = app.get_webview_window("main")
+            {
+                main.show()?;
+            }
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            commands::set_titlebar_colors,
+            panel::panel_status,
+            panel::panel_set_enabled,
+            panel::panel_set_on_top,
+            panel::panel_set_collapsed,
+            panel::panel_place,
+            panel::panel_show_main,
+            panel::set_autostart,
+            commands::get_setting,
+            commands::pay_fixed,
+            commands::unpay_fixed,
+            commands::stickies,
+            commands::add_sticky,
+            commands::update_sticky,
+            commands::delete_sticky,
+            commands::reorder_stickies,
+            commands::cloud_status,
+            commands::cloud_sign_in,
+            commands::cloud_sign_out,
+            commands::cloud_sync_now,
+            commands::export_data,
+            commands::inspect_backup,
+            commands::import_data,
+            commands::reset_all_data,
+            commands::latest_release,
+            commands::bookmark_folders,
+            commands::save_bookmark_folder,
+            commands::delete_bookmark_folder,
+            commands::bookmarks,
+            commands::save_bookmark,
+            commands::delete_bookmark,
+            commands::reorder_bookmarks,
+            commands::expenses_between,
+            commands::save_expense,
+            commands::delete_expense,
+            commands::commissions,
+            commands::save_commission,
+            commands::delete_commission,
+            commands::commission_clients,
+            commands::save_commission_client,
+            commands::delete_commission_client,
+            commands::diary_between,
+            commands::save_diary_entry,
+            commands::delete_diary_entry,
+            commands::meals_between,
+            commands::save_meal,
+            commands::delete_meal,
+            commands::workouts_between,
+            commands::save_workout,
+            commands::delete_workout,
+            commands::trpg_entries,
+            commands::save_trpg_entry,
+            commands::delete_trpg_entry,
+            commands::reorder_trpg_entries,
+            commands::books,
+            commands::save_book,
+            commands::delete_book,
+            commands::set_setting,
+            commands::events_between,
+            commands::save_event,
+            commands::delete_event,
+            commands::restore_occurrence,
+            commands::tags,
+            commands::save_tag,
+            commands::delete_tag,
+            commands::ddays,
+            commands::save_dday,
+            commands::delete_dday,
+            commands::reorder_ddays,
+            commands::import_image,
+            commands::remove_unused_images,
+            commands::todo_groups,
+            commands::add_todo_group,
+            commands::update_todo_group,
+            commands::delete_todo_group,
+            commands::todos,
+            commands::routines,
+            commands::save_routine,
+            commands::delete_routine,
+            commands::add_todo,
+            commands::update_todo,
+            commands::set_todo_done,
+            commands::delete_todo,
+            commands::memos,
+            commands::create_memo,
+            commands::set_memo_group,
+            commands::memo_groups,
+            commands::save_memo_group,
+            commands::delete_memo_group,
+            commands::update_memo,
+            commands::delete_memo,
+            commands::save_pomodoro_session,
+            commands::pomodoro_sessions,
+            commands::activity_summary,
+            commands::activity_timeline,
+            commands::tracker_status,
+            commands::tracker_settings,
+            commands::set_tracker_settings,
+        ])
+        .build(tauri::generate_context!())
+        .expect("error while building Holmes")
+        .run(|_app, _event| {
+            // macOS: clicking the Dock icon while only the panel is showing brings the app back.
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Reopen { .. } = _event {
+                panel::show_main(_app, None, None, None);
+            }
+        });
+}
