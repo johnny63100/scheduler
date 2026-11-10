@@ -981,6 +981,13 @@ function renderMoney() {
       html += '<div class="cats">' + top.map(([c, v]) => { const [, label, icon] = catOf(c); return `<div class="c"><span>${icon}</span><span>${label}</span><span class="amt">${money(v)}</span><div class="track"><i style="width:${(v / top[0][1]) * 100}%"></i></div></div>`; }).join('') + '</div>';
     }
   }
+  // Spending/income left out of stats (paying for friends, being paid back): faded, below the bars.
+  const aside = new Map();
+  for (const x of list) if (!counts(x.category)) aside.set(x.category, (aside.get(x.category) ?? 0) + Number(x.amount));
+  if (aside.size) {
+    const max = Math.max(...aside.values());
+    html += '<div class="cats" style="opacity:.45;margin-top:6px">' + [...aside].sort((a, b) => b[1] - a[1]).map(([c, v]) => { const [, label, icon] = catOf(c); return `<div class="c"><span>${icon}</span><span>${label}</span><span class="amt">${money(v)}</span><div class="track"><i style="width:${(v / max) * 100}%"></i></div></div>`; }).join('') + '</div>';
+  }
   html += '</div>';
   // Fixed monthly payments with a paid tick (set up on the PC).
   const fixed = [...(m.fixed ?? [])];

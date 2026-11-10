@@ -98,11 +98,21 @@
   const byCategory = $derived.by(() => {
     const list = breakdown === 'income' ? incomes : spending;
     const extra = breakdown === 'income' ? linkedTotal : 0;
-    return categoriesFor(breakdown, true)
+    const counted = categoriesFor(breakdown, true)
+      .filter((c) => !c.excluded)
       .map((c) => ({ ...c, value: list.filter((e) => e.category === c.id).reduce((s, e) => s + e.amount, 0) + (c.id === 'commission' ? extra : 0) }))
       .filter((c) => c.value > 0)
       .sort((a, b) => b.value - a.value);
+    // Categories left out of stats (e.g. paying for friends / being paid back) go last, faded and
+    // without a share, so you can still see whether a group bill has been paid back.
+    const aside = categoriesFor(breakdown, true)
+      .filter((c) => c.excluded)
+      .map((c) => ({ ...c, value: expenses.filter((e) => e.category === c.id && (e.kind === 'income') === (breakdown === 'income')).reduce((s, e) => s + e.amount, 0) }))
+      .filter((c) => c.value > 0)
+      .sort((a, b) => b.value - a.value);
+    return [...counted, ...aside];
   });
+  const barMax = $derived(Math.max(1, ...byCategory.map((c) => c.value)));
   const breakdownTotal = $derived(breakdown === 'income' ? incomeTotal : total);
   const perDay = $derived(
     range(month, daysInMonth).map((d) => ({
@@ -315,12 +325,12 @@
         {#if byCategory.length}
           <div class="cat-list">
             {#each byCategory as c (c.id)}
-              <div class="cat-row" style:--c={c.color}>
+              <div class="cat-row" class:aside={c.excluded} style:--c={c.color}>
                 <span class="cat-icon small-icon"><c.icon size={15} /></span>
                 <span class="cat-name truncate">{c.name}</span>
-                <span class="cat-bar"><span style:width="{(c.value / byCategory[0].value) * 100}%"></span></span>
+                <span class="cat-bar"><span style:width="{(c.value / barMax) * 100}%"></span></span>
                 <span class="cat-amount tabular">{fmtMoney(c.value)}</span>
-                <span class="cat-pct faint small">{pct(c.value / breakdownTotal)}</span>
+                <span class="cat-pct faint small">{c.excluded ? '' : pct(c.value / breakdownTotal)}</span>
               </div>
             {/each}
           </div>
@@ -755,5 +765,8 @@
   }
   .expense.excluded .exp-amount {
     color: var(--faint);
+  }
+  .cat-row.aside {
+    opacity: 0.45;
   }
 </style>
