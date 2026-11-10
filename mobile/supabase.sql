@@ -16,7 +16,7 @@ create table if not exists public.nora_snapshot (
 create table if not exists public.nora_inbox (
   id         bigint generated always as identity primary key,
   owner      uuid not null default auth.uid() references auth.users on delete cascade,
-  kind       text not null check (kind in ('add_event', 'update_event', 'delete_event', 'add_todo', 'set_todo_done', 'save_meal', 'delete_meal', 'save_workout', 'delete_workout', 'save_expense', 'delete_expense', 'add_sticky', 'delete_sticky')),
+  kind       text not null check (kind in ('add_event', 'update_event', 'delete_event', 'add_todo', 'set_todo_done', 'save_meal', 'delete_meal', 'save_workout', 'delete_workout', 'save_expense', 'delete_expense', 'add_sticky', 'delete_sticky', 'pay_fixed', 'unpay_fixed')),
   payload    jsonb not null,
   created_at timestamptz not null default now(),
   applied_at timestamptz,
@@ -50,7 +50,7 @@ begin
 exception when duplicate_object then null;
 end $$;
 
--- 이미 예전 버전을 실행했다면: 일정 수정·삭제, 식단·운동·가계부·메모 요청도 받도록 허용 목록을 넓혀요.
+-- 이미 예전 버전을 실행했다면: 일정 수정·삭제, 식단·운동·가계부·메모·고정 지출 요청도 받도록 허용 목록을 넓혀요.
 alter table public.nora_inbox drop constraint if exists nora_inbox_kind_check;
 alter table public.nora_inbox add constraint nora_inbox_kind_check
-  check (kind in ('add_event', 'update_event', 'delete_event', 'add_todo', 'set_todo_done', 'save_meal', 'delete_meal', 'save_workout', 'delete_workout', 'save_expense', 'delete_expense', 'add_sticky', 'delete_sticky'));
+  check (kind in ('add_event', 'update_event', 'delete_event', 'add_todo', 'set_todo_done', 'save_meal', 'delete_meal', 'save_workout', 'delete_workout', 'save_expense', 'delete_expense', 'add_sticky', 'delete_sticky', 'pay_fixed', 'unpay_fixed'));

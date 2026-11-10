@@ -3,6 +3,7 @@
   // spending against each target, overall numbers, and the last six months.
   import { CalendarClock, Check, Gauge, PiggyBank, Pencil, Target, TrendingUp, X } from '@lucide/svelte';
   import StatCard from './StatCard.svelte';
+  import FixedExpenses from './FixedExpenses.svelte';
   import { api, type Expense } from '../lib/api';
   import { addMonths, fmt, monthStart, parseYmd, today } from '../lib/dates';
   import { categoriesFor, categoryBudgetTotal, expenseSettings, fmtMoney, fmtMoneyShort, saveCategoryBudgets, type Category } from '../lib/expenses.svelte';
@@ -120,6 +121,8 @@
     tint={projected > totalBudget ? 'var(--danger)' : 'var(--success)'}
   />
 </div>
+
+<FixedExpenses {month} {spending} {left} {hasBudgets} />
 
 <div class="layout">
   <div class="card">

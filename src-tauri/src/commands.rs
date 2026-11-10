@@ -70,6 +70,21 @@ pub fn set_setting(state: State<AppState>, key: String, value: String) -> CmdRes
     with_db(&state, |db| db.set_setting(&key, &value))
 }
 
+// ---- fixed expenses ------------------------------------------------------------
+
+/// Ticks off a fixed expense for a month ("YYYY-MM"), recording it in the money book.
+#[tauri::command]
+pub fn pay_fixed(state: State<AppState>, id: String, month: String) -> CmdResult<i64> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    crate::fixed::pay(&db, &id, &month)
+}
+
+#[tauri::command]
+pub fn unpay_fixed(state: State<AppState>, id: String, month: String) -> CmdResult<()> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    crate::fixed::unpay(&db, &id, &month)
+}
+
 // ---- stickies -----------------------------------------------------------------
 
 #[tauri::command]

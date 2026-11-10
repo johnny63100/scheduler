@@ -177,6 +177,10 @@
   .memo .x { flex: none; border: 0; background: none; color: var(--faint); font-size: 18px; line-height: 1; padding: 2px 4px; }
   .memo .x.armed { color: var(--danger); font-size: 13px; font-weight: 700; }
 
+  .row-item.fx.eaten .name, .row-item.fx.eaten .amt { color: var(--muted); text-decoration: line-through; }
+  .row-item.fx .k.late { color: var(--danger); font-weight: 600; }
+  .row-item.fx .k.soon { color: #c98a1a; font-weight: 600; }
+
   /* ---- todos */
   .group { margin-bottom: 16px; }
   .group h3 { display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 0 4px 6px; }
@@ -924,6 +928,18 @@ function money(n) {
   catch { return fmt(n); }
 }
 
+/** Whether a fixed payment counts as paid in `month`, including ticks still waiting for the PC. */
+function fixedPaid(f, month, entries) {
+  const id = snapshot?.money?.fixed_paid?.[month]?.[f.id];
+  let paid = !!id && entries.some((x) => x.id === id);
+  for (const r of pending()) {
+    if (r.error || r.payload?.id !== f.id || r.payload?.month !== month) continue;
+    if (r.kind === 'pay_fixed') paid = true;
+    if (r.kind === 'unpay_fixed') paid = false;
+  }
+  return paid;
+}
+
 function renderMoney() {
   const el = $('#p-money');
   const m = snapshot?.money;
@@ -962,6 +978,25 @@ function renderMoney() {
     }
   }
   html += '</div>';
+  // Fixed monthly payments with a paid tick (set up on the PC).
+  const fixed = [...(m.fixed ?? [])];
+  if (fixed.length) {
+    const last = new Date(y, mo, 0).getDate();
+    const due = (f) => Math.min(Math.max(1, f.day), last);
+    const rows = fixed.sort((a, b) => due(a) - due(b)).map((f) => ({ f, paid: fixedPaid(f, moneyMonth, all) }));
+    const total = rows.reduce((a, r) => a + Number(r.f.amount), 0);
+    const paidTotal = rows.filter((r) => r.paid).reduce((a, r) => a + Number(r.f.amount), 0);
+    const nowDay = Number(today.slice(8));
+    const isNow = moneyMonth === today.slice(0, 7);
+    html += `<div class="hblock"><div class="section-h">🔁 고정 지출 <small>${money(paidTotal)} / ${money(total)}</small></div><div class="card">`;
+    html += rows.map(({ f, paid }) => {
+      const late = !paid && ((isNow && due(f) < nowDay) || moneyMonth < today.slice(0, 7));
+      const soon = !paid && isNow && !late && due(f) - nowDay <= 3;
+      const when = late ? `${due(f)}일 · 미납` : `${due(f)}일`;
+      return `<div class="row-item fx ${paid ? 'eaten' : ''}"><button class="check" data-fx="${esc(f.id)}" data-paid="${paid ? 1 : 0}" aria-label="납부 체크"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><div class="grow"><div class="name">${esc(f.name)}</div><div class="k ${late ? 'late' : soon ? 'soon' : ''}">${when}</div></div><span class="amt">${money(f.amount)}</span></div>`;
+    }).join('');
+    html += '</div></div>';
+  }
   let day = '';
   for (const x of list) {
     if (x.date !== day) {
@@ -1135,6 +1170,13 @@ $('#p-money').addEventListener('click', (e) => {
     const [y, m] = moneyMonth.split('-').map(Number);
     moneyMonth = ymd(new Date(y, m - 1 + Number(nav.dataset.mm), 1)).slice(0, 7);
     return renderMoney();
+  }
+  const fx = e.target.closest('[data-fx]');
+  if (fx) {
+    fx.disabled = true;
+    if (navigator.vibrate) navigator.vibrate(8);
+    const f = (snapshot?.money?.fixed ?? []).find((x) => x.id === fx.dataset.fx);
+    return send(fx.dataset.paid === '1' ? 'unpay_fixed' : 'pay_fixed', { id: fx.dataset.fx, month: moneyMonth, title: f?.name });
   }
   const row = e.target.closest('[data-m]');
   if (row) {

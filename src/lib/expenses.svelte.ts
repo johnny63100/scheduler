@@ -186,6 +186,10 @@ export const expenseSettings = $state({
   linkCommissions: true,
   /** Monthly spending target per category id (the same every month). */
   categoryBudgets: {} as Record<string, number>,
+  /** Payments due every month (see src-tauri/src/fixed.rs). */
+  fixed: [] as FixedExpense[],
+  /** month "YYYY-MM" -> fixed id -> id of the recorded expense */
+  fixedPaid: {} as Record<string, Record<string, number>>,
   loaded: false,
 });
 
@@ -197,6 +201,7 @@ export async function loadExpenseSettings() {
     api.getSetting('expense.categoryBudgets').catch(() => null),
     api.getSetting('expense.categories').catch(() => null),
   ]);
+  await loadFixed();
   categoryStore.list = mergeCategories(cats);
   expenseSettings.categoryBudgets = parseBudgets(perCategory);
   expenseSettings.linkCommissions = link !== 'false';
@@ -222,6 +227,34 @@ function parseBudgets(raw: string | null): Record<string, number> {
     return {};
   }
 }
+
+export type FixedExpense = { id: string; name: string; amount: number; category: string; day: number };
+
+function parseJson<T>(raw: string | null, fallback: T): T {
+  try {
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Reads the fixed list and paid marks (the paid marks also change when ticking from the phone). */
+export async function loadFixed() {
+  const [list, paid] = await Promise.all([
+    api.getSetting('expense.fixed').catch(() => null),
+    api.getSetting('expense.fixedPaid').catch(() => null),
+  ]);
+  const items = parseJson<FixedExpense[]>(list, []);
+  expenseSettings.fixed = Array.isArray(items) ? items : [];
+  expenseSettings.fixedPaid = parseJson<Record<string, Record<string, number>>>(paid, {});
+}
+
+export async function saveFixed(list: FixedExpense[]) {
+  expenseSettings.fixed = list;
+  await api.setSetting('expense.fixed', JSON.stringify(list)).catch(() => {});
+}
+
+export const newFixedId = () => `f${Date.now().toString(36)}`;
 
 export async function saveCategoryBudgets(budgets: Record<string, number>) {
   expenseSettings.categoryBudgets = Object.fromEntries(Object.entries(budgets).filter(([, v]) => v > 0));

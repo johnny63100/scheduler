@@ -385,6 +385,24 @@ export function installMock() {
         if (a.expense.id) { Object.assign(expenses.find((e) => e.id === a.expense.id)!, a.expense); return a.expense.id; }
         expenses.push({ ...a.expense, id: nextId }); return nextId++;
       }
+      case 'pay_fixed': {
+        const f = (JSON.parse(settings['expense.fixed'] || '[]') as { id: string; name: string; amount: number; category: string; day: number }[]).find((x) => x.id === a.id);
+        if (!f) throw 'not found';
+        const id = nextId++;
+        const last = new Date(Number(a.month.slice(0, 4)), Number(a.month.slice(5, 7)), 0).getDate();
+        expenses.push({ id, amount: f.amount, category: f.category, date: `${a.month}-${String(Math.min(f.day, last)).padStart(2, '0')}`, note: f.name, kind: 'expense' });
+        const paid = JSON.parse(settings['expense.fixedPaid'] || '{}');
+        (paid[a.month] ??= {})[a.id] = id;
+        settings['expense.fixedPaid'] = JSON.stringify(paid);
+        return id;
+      }
+      case 'unpay_fixed': {
+        const paid = JSON.parse(settings['expense.fixedPaid'] || '{}');
+        const id = paid[a.month]?.[a.id];
+        if (id) { const i = expenses.findIndex((e) => e.id === id); if (i >= 0) expenses.splice(i, 1); delete paid[a.month][a.id]; }
+        settings['expense.fixedPaid'] = JSON.stringify(paid);
+        return null;
+      }
       case 'delete_expense': { const i = expenses.findIndex((e) => e.id === a.id); return i < 0 ? null : expenses.splice(i, 1)[0]; }
       case 'diary_between': return diary.filter((e) => e.date >= a.from && e.date <= a.to).sort((x, y) => x.date.localeCompare(y.date));
       case 'save_diary_entry': {

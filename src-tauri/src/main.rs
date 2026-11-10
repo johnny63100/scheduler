@@ -8,6 +8,7 @@ mod commissions;
 mod db;
 mod diary;
 mod expenses;
+mod fixed;
 mod health;
 mod images;
 mod panel;
@@ -122,6 +123,8 @@ fn main() {
             panel::panel_show_main,
             panel::set_autostart,
             commands::get_setting,
+            commands::pay_fixed,
+            commands::unpay_fixed,
             commands::stickies,
             commands::add_sticky,
             commands::update_sticky,

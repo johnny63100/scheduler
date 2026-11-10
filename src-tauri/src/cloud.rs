@@ -339,6 +339,12 @@ fn snapshot(db: &Db) -> db::DbResult<Value> {
     let money = json!({
         "currency": db.setting("expense.currency")?.filter(|c| !c.is_empty()).unwrap_or_else(|| "KRW".into()),
         "budget": db.setting("expense.budget")?.and_then(|b| b.parse::<f64>().ok()).filter(|b| *b > 0.0),
+        // Fixed monthly payments and which were ticked off (this month and last).
+        "fixed": crate::fixed::list(db),
+        "fixed_paid": crate::fixed::paid(db)
+            .into_iter()
+            .filter(|(m, _)| m.as_str() >= mfrom.format("%Y-%m").to_string().as_str())
+            .collect::<std::collections::BTreeMap<_, _>>(),
         // The user's category list (renamed, re-iconed, hidden or added categories).
         "categories": db
             .setting("expense.categories")?
@@ -616,6 +622,15 @@ fn apply(db: &Db, item: &InboxItem) -> Result<(), String> {
             let r: ById = parse(&item.payload)?;
             db.delete_sticky(r.id).map_err(|e| e.to_string())
         }
+        "pay_fixed" | "unpay_fixed" => {
+            #[derive(Deserialize)]
+            struct FixedMonth {
+                id: String,
+                month: String,
+            }
+            let r: FixedMonth = parse(&item.payload)?;
+            if item.kind == "pay_fixed" { crate::fixed::pay(db, &r.id, &r.month).map(|_| ()) } else { crate::fixed::unpay(db, &r.id, &r.month) }
+        }
         "delete_expense" => {
             let r: ById = parse(&item.payload)?;
             db.delete_expense(r.id).map(|_| ()).map_err(|e| e.to_string())
@@ -847,5 +862,23 @@ mod tests {
         assert_eq!(db.stickies().unwrap()[0].text, "우유 사기");
         apply(&db, &item("delete_sticky", json!({ "id": list[1]["id"] }))).unwrap();
         assert_eq!(db.stickies().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn fixed_expenses_ticked_off_from_the_phone() {
+        let db = temp_db();
+        let fixed = json!([{ "id": "roll20", "name": "Roll20 Pro", "amount": 13000, "category": "bills", "day": 31 }]);
+        db.set_setting(crate::fixed::KEY_LIST, &fixed.to_string()).unwrap();
+        apply(&db, &item("pay_fixed", json!({ "id": "roll20", "month": "2026-11" }))).unwrap();
+        apply(&db, &item("pay_fixed", json!({ "id": "roll20", "month": "2026-11" }))).unwrap(); // twice: still one record
+        let rows = db.expenses_between(NaiveDate::from_ymd_opt(2026, 11, 1).unwrap(), NaiveDate::from_ymd_opt(2026, 11, 30).unwrap()).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].note, "Roll20 Pro");
+        assert_eq!(rows[0].date, NaiveDate::from_ymd_opt(2026, 11, 30).unwrap()); // day 31 → Nov 30
+        assert_eq!(crate::fixed::paid(&db)["2026-11"]["roll20"], rows[0].id);
+        apply(&db, &item("unpay_fixed", json!({ "id": "roll20", "month": "2026-11" }))).unwrap();
+        assert!(db.expenses_between(NaiveDate::from_ymd_opt(2026, 11, 1).unwrap(), NaiveDate::from_ymd_opt(2026, 11, 30).unwrap()).unwrap().is_empty());
+        assert!(crate::fixed::paid(&db).get("2026-11").is_none());
+        assert!(apply(&db, &item("pay_fixed", json!({ "id": "gone", "month": "2026-11" }))).is_err());
     }
 }

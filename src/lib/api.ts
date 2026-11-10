@@ -480,6 +480,8 @@ export const api = {
   saveBook: (book: Book) => invoke<number>('save_book', { book }),
   deleteBook: (id: number) => invoke<Book | null>('delete_book', { id }),
 
+  payFixed: (id: string, month: string) => invoke<number>('pay_fixed', { id, month }),
+  unpayFixed: (id: string, month: string) => invoke<void>('unpay_fixed', { id, month }),
   stickies: () => invoke<Sticky[]>('stickies'),
   addSticky: (text: string, color: number) => invoke<number>('add_sticky', { text, color }),
   updateSticky: (id: number, text: string, color: number) => invoke<void>('update_sticky', { id, text, color }),
