@@ -6,7 +6,7 @@
   import { api, type Expense } from '../lib/api';
   import { monthStart, parseYmd, today } from '../lib/dates';
   import {
-    categoriesFor, categoryOf, expenseSettings, fixedDueIn, fmtMoney, loadFixed, newFixedId, saveFixed, type FixedExpense,
+    categoriesFor, categoryOf, expenseSettings, fixedDueIn, fmtMoney, loadFixed, newFixedId, saveFixed, saveFixedSort, type FixedExpense,
   } from '../lib/expenses.svelte';
   import { t } from '../lib/i18n.svelte';
   import { data, toast } from '../lib/state.svelte';
@@ -36,7 +36,15 @@
   let dragId = $state<string | null>(null);
   let dragChanged = false;
   const ordered = $derived(dragOrder ?? expenseSettings.fixed);
-  const items = $derived(ordered.filter((f) => fixedDueIn(f, month)));
+  /** Category position in the user's category order (Categories editor). */
+  const catRank = $derived(new Map(categoriesFor('expense', true).map((c, i) => [c.id, i])));
+  const byDate = $derived(expenseSettings.fixedSort === 'date');
+  const items = $derived.by(() => {
+    const due = ordered.filter((f) => fixedDueIn(f, month));
+    const rank = (f: FixedExpense) => catRank.get(f.category) ?? 999;
+    // Stable sorts: ties keep the dragged order.
+    return byDate ? [...due].sort((a, b) => dueDay(a) - dueDay(b)) : [...due].sort((a, b) => rank(a) - rank(b));
+  });
 
   function dragStart(e: DragEvent, f: FixedExpense) {
     if (!e.dataTransfer) return;
@@ -52,6 +60,8 @@
     if (dragId === null || !dragOrder) return;
     e.preventDefault();
     if (target.id === dragId) return;
+    // Rows only move within their category (the list is grouped by category).
+    if (dragOrder.find((x) => x.id === dragId)?.category !== target.category) return;
     const from = dragOrder.findIndex((x) => x.id === dragId);
     const to = dragOrder.findIndex((x) => x.id === target.id);
     if (from < 0 || to < 0) return;
@@ -125,6 +135,12 @@
       <span class="muted small tabular">{t('fx.summary', { paid: fmtMoney(paidTotal), total: fmtMoney(total) })}</span>
     {/if}
     <span class="spacer"></span>
+    {#if !editing && items.length > 1}
+      <div class="segmented sort">
+        <button class:active={!byDate} onclick={() => saveFixedSort('category')}>{t('fx.sortCategory')}</button>
+        <button class:active={byDate} onclick={() => saveFixedSort('date')}>{t('fx.sortDate')}</button>
+      </div>
+    {/if}
     {#if editing}
       <button class="btn small" onclick={() => (editing = false)}><X size={15} /> {t('common.cancel')}</button>
       <button class="btn small primary" onclick={saveList}><Check size={15} /> {t('common.save')}</button>
@@ -173,7 +189,7 @@
         {@const late = !isPaid && ((isCurrentMonth && dueDay(f) < todayDay) || month < monthStart(today()))}
         {@const soon = !isPaid && isCurrentMonth && !late && dueDay(f) - todayDay <= 3}
         <div class="item" class:paid={isPaid} class:dragging={dragId === f.id} ondragover={(e) => dragOver(e, f)} ondrop={(e) => e.preventDefault()} role="listitem">
-          {#if items.length > 1}
+          {#if !byDate && items.length > 1}
             <span class="handle" draggable="true" ondragstart={(e) => dragStart(e, f)} ondragend={dragEnd} title={t('fx.drag')} aria-label={t('fx.drag')} role="button" tabindex="-1">
               <GripVertical size={15} />
             </span>
@@ -237,10 +253,18 @@
   .empty {
     margin: 0;
   }
+  /* Fills the left column top to bottom first, then the next one. */
   .list {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
-    gap: 6px 18px;
+    columns: 330px auto;
+    column-gap: 18px;
+  }
+  .list .item {
+    break-inside: avoid;
+  }
+  .sort button {
+    height: 26px;
+    padding: 0 10px;
+    font-size: 12.5px;
   }
   .item {
     display: flex;

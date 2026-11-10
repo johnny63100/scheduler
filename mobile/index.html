@@ -990,11 +990,15 @@ function renderMoney() {
   }
   html += '</div>';
   // Fixed monthly payments with a paid tick (set up on the PC).
-  // In the order set on the PC; yearly payments (f.month) only in their month.
+  // Yearly payments (f.month) only in their month.
   const fixed = (m.fixed ?? []).filter((f) => !f.month || f.month === mo);
   if (fixed.length) {
     const last = new Date(y, mo, 0).getDate();
     const due = (f) => Math.min(Math.max(1, f.day), last);
+    // Same order as the PC: grouped by category (in the PC's category order) or by due day.
+    const catIds = catsFor('expense', true).map((c) => c[0]);
+    const rank = (f) => { const i = catIds.indexOf(f.category); return i < 0 ? 999 : i; };
+    fixed.sort(m.fixed_sort === 'date' ? (a, b) => due(a) - due(b) : (a, b) => rank(a) - rank(b));
     const rows = fixed.map((f) => ({ f, paid: fixedPaid(f, moneyMonth, all) }));
     const total = rows.reduce((a, r) => a + Number(r.f.amount), 0);
     const paidTotal = rows.filter((r) => r.paid).reduce((a, r) => a + Number(r.f.amount), 0);

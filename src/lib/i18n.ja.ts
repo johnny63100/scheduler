@@ -767,6 +767,8 @@ export const ja: Record<Key, string> = {
   'fx.yearlyTag': '年払い',
   'fx.noneThisMonth': '今月の固定費はありません。年払いはその月にだけ表示されます。',
   'fx.drag': 'ドラッグで並べ替え',
+  'fx.sortCategory': '項目別',
+  'fx.sortDate': '日付順',
   'fx.addRow': '行を追加',
   'fx.editHint': '毎月、または周期で選んだ月に年1回、その日に支払う設定です(31日は月末)。支払ったらチェックすると家計簿に記録されます。',
   'fx.empty': 'サブスク、家賃、通信費など毎月の支払いを登録して、払ったらチェックしましょう。',

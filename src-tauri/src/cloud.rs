@@ -341,6 +341,8 @@ fn snapshot(db: &Db) -> db::DbResult<Value> {
         "budget": db.setting("expense.budget")?.and_then(|b| b.parse::<f64>().ok()).filter(|b| *b > 0.0),
         // Fixed monthly payments and which were ticked off (this month and last).
         "fixed": crate::fixed::list(db),
+        // "category" (grouped by category, in the PC's order) or "date" (by due day).
+        "fixed_sort": db.setting("expense.fixedSort")?.unwrap_or_else(|| "category".into()),
         "fixed_paid": crate::fixed::paid(db)
             .into_iter()
             .filter(|(m, _)| m.as_str() >= mfrom.format("%Y-%m").to_string().as_str())
