@@ -14,6 +14,7 @@
   import {
     addDays, covers, diffDays, eventSpan, fmt, isAllDayLane, monthStart, range, shiftDays, timeOf, today, weekStart, weekdayNames,
   } from '../lib/dates';
+  import { holidayName } from '../lib/holidays';
   import { t } from '../lib/i18n.svelte';
 
   let {
@@ -155,6 +156,7 @@
             <button class="num" class:today={day === todayStr} onclick={(e) => { e.stopPropagation(); onday(day); }} title={t('cal.openDay')}>
               {Number(day.slice(8))}
             </button>
+            {#if holidayName(day)}<span class="holiday truncate" title={holidayName(day)}>{holidayName(day)}</span>{/if}
           </div>
         {/each}
 
@@ -254,6 +256,7 @@
     border-bottom: 1px solid var(--border);
   }
   .cell {
+    position: relative;
     border-right: 1px solid var(--border);
     padding: 6px;
     min-width: 0;
@@ -288,6 +291,17 @@
   }
   .cell.other .num {
     color: var(--faint);
+  }
+  /* Korean public holiday name, faint, next to the day number. */
+  .holiday {
+    position: absolute;
+    top: 13px;
+    left: 40px;
+    right: 8px;
+    font-size: 11px;
+    line-height: 1;
+    color: var(--faint);
+    pointer-events: none;
   }
   .num {
     width: 28px;

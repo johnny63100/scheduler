@@ -14,6 +14,7 @@
   import {
     addMinutes, covers, fmt, isAllDayLane, minutesOf, overlapColumns, pad, shiftDays, timeOf, toDateTime, today,
   } from '../lib/dates';
+  import { holidayName } from '../lib/holidays';
   import { t } from '../lib/i18n.svelte';
 
   let {
@@ -238,6 +239,7 @@
       <button class="dayhead" class:today={day === todayStr} onclick={() => onday(day)} disabled={days.length === 1}>
         <span class="dow">{fmt(day, { weekday: 'short' })}</span>
         <span class="num">{Number(day.slice(8))}</span>
+        {#if holidayName(day)}<span class="holiday truncate">{holidayName(day)}</span>{/if}
       </button>
     {/each}
   </div>
@@ -493,6 +495,12 @@
     font-size: 11px;
     color: var(--faint);
     font-variant-numeric: tabular-nums;
+  }
+  .holiday {
+    max-width: 100%;
+    font-size: 10.5px;
+    line-height: 1.2;
+    color: var(--faint);
   }
   .early-toggle {
     position: absolute;
