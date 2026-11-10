@@ -990,11 +990,12 @@ function renderMoney() {
   }
   html += '</div>';
   // Fixed monthly payments with a paid tick (set up on the PC).
-  const fixed = [...(m.fixed ?? [])];
+  // In the order set on the PC; yearly payments (f.month) only in their month.
+  const fixed = (m.fixed ?? []).filter((f) => !f.month || f.month === mo);
   if (fixed.length) {
     const last = new Date(y, mo, 0).getDate();
     const due = (f) => Math.min(Math.max(1, f.day), last);
-    const rows = fixed.sort((a, b) => due(a) - due(b)).map((f) => ({ f, paid: fixedPaid(f, moneyMonth, all) }));
+    const rows = fixed.map((f) => ({ f, paid: fixedPaid(f, moneyMonth, all) }));
     const total = rows.reduce((a, r) => a + Number(r.f.amount), 0);
     const paidTotal = rows.filter((r) => r.paid).reduce((a, r) => a + Number(r.f.amount), 0);
     const nowDay = Number(today.slice(8));
@@ -1004,7 +1005,7 @@ function renderMoney() {
       const late = !paid && ((isNow && due(f) < nowDay) || moneyMonth < today.slice(0, 7));
       const soon = !paid && isNow && !late && due(f) - nowDay <= 3;
       const when = late ? `${due(f)}일 · 미납` : `${due(f)}일`;
-      return `<div class="row-item fx ${paid ? 'eaten' : ''}"><button class="check" data-fx="${esc(f.id)}" data-paid="${paid ? 1 : 0}" aria-label="납부 체크"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><div class="grow"><div class="name">${esc(f.name)}</div><div class="k ${late ? 'late' : soon ? 'soon' : ''}">${when}</div></div><span class="amt">${money(f.amount)}</span></div>`;
+      return `<div class="row-item fx ${paid ? 'eaten' : ''}"><button class="check" data-fx="${esc(f.id)}" data-paid="${paid ? 1 : 0}" aria-label="납부 체크"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><div class="grow"><div class="name">${esc(f.name)}${f.month ? '<span class="chip">연간</span>' : ''}</div><div class="k ${late ? 'late' : soon ? 'soon' : ''}">${when}</div></div><span class="amt">${money(f.amount)}</span></div>`;
     }).join('');
     html += '</div></div>';
   }

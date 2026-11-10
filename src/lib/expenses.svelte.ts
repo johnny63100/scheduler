@@ -244,7 +244,11 @@ function parseBudgets(raw: string | null): Record<string, number> {
   }
 }
 
-export type FixedExpense = { id: string; name: string; amount: number; category: string; day: number };
+/** A payment due every month, or once a year when `month` (1–12) is set. */
+export type FixedExpense = { id: string; name: string; amount: number; category: string; day: number; month?: number };
+
+/** Whether a fixed expense is due in `month` ("YYYY-MM-DD" or "YYYY-MM"). */
+export const fixedDueIn = (f: FixedExpense, month: string) => !f.month || f.month === Number(month.slice(5, 7));
 
 function parseJson<T>(raw: string | null, fallback: T): T {
   try {

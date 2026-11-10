@@ -25,6 +25,19 @@ pub struct Fixed {
     pub category: String,
     /// Day of the month it is due (1–31; clamped to the month's last day).
     pub day: u32,
+    /// Set for yearly payments: the month (1–12) it is due in. Absent: every month.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub month: Option<u32>,
+}
+
+impl Fixed {
+    /// Whether it is due in `month` ("YYYY-MM").
+    pub fn due_in(&self, month: &str) -> bool {
+        match self.month {
+            None => true,
+            Some(m) => month.get(5..7).and_then(|s| s.parse::<u32>().ok()) == Some(m),
+        }
+    }
 }
 
 /// month ("YYYY-MM") -> fixed id -> expense id
@@ -65,6 +78,9 @@ pub fn due_date(month: &str, day: u32) -> Result<NaiveDate, String> {
 /// Marks a fixed expense as paid for `month`, recording the expense. Returns the expense id.
 pub fn pay(db: &Db, fixed_id: &str, month: &str) -> Result<i64, String> {
     let item = list(db).into_iter().find(|f| f.id == fixed_id).ok_or("고정 지출을 찾을 수 없어요")?;
+    if !item.due_in(month) {
+        return Err("이 달에 내는 항목이 아니에요".into());
+    }
     let mut paid = paid(db);
     if let Some(existing) = paid.get(month).and_then(|m| m.get(fixed_id)).copied() {
         let still_there = db
@@ -108,5 +124,13 @@ mod tests {
         assert_eq!(due_date("2026-11", 15).unwrap(), NaiveDate::from_ymd_opt(2026, 11, 15).unwrap());
         assert_eq!(due_date("2026-12", 0).unwrap(), NaiveDate::from_ymd_opt(2026, 12, 1).unwrap());
         assert!(due_date("nope", 1).is_err());
+    }
+
+    #[test]
+    fn yearly_items_are_due_in_their_month_only() {
+        let f: Fixed = serde_json::from_str(r#"{"id":"a","name":"x","amount":1,"category":"bills","day":3,"month":3}"#).unwrap();
+        assert!(f.due_in("2026-03") && !f.due_in("2026-04"));
+        let m: Fixed = serde_json::from_str(r#"{"id":"b","name":"y","amount":1,"category":"bills","day":3}"#).unwrap();
+        assert!(m.due_in("2026-04") && m.month.is_none());
     }
 }
