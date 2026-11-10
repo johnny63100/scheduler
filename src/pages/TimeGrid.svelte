@@ -238,7 +238,7 @@
     {#each days as day (day)}
       <button class="dayhead" class:today={day === todayStr} onclick={() => onday(day)} disabled={days.length === 1}>
         <span class="dow">{fmt(day, { weekday: 'short' })}</span>
-        <span class="num" class:holiday-num={!!holidayName(day)}>{Number(day.slice(8))}</span>
+        <span class="num" class:holiday-num={!!holidayName(day) || new Date(`${day}T00:00`).getDay() === 0}>{Number(day.slice(8))}</span>
         {#if holidayName(day)}<span class="holiday truncate">{holidayName(day)}</span>{/if}
       </button>
     {/each}

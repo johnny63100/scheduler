@@ -153,7 +153,7 @@
                 { label: t('menu.openDay'), icon: CalendarDays, action: () => onday(day) },
               ]))}
           >
-            <button class="num" class:today={day === todayStr} class:holiday-num={!!holidayName(day)} onclick={(e) => { e.stopPropagation(); onday(day); }} title={t('cal.openDay')}>
+            <button class="num" class:today={day === todayStr} class:holiday-num={!!holidayName(day) || new Date(`${day}T00:00`).getDay() === 0} onclick={(e) => { e.stopPropagation(); onday(day); }} title={t('cal.openDay')}>
               {Number(day.slice(8))}
             </button>
             {#if holidayName(day)}<span class="holiday truncate" title={holidayName(day)}>{holidayName(day)}</span>{/if}
@@ -317,7 +317,7 @@
   .num:hover {
     background: var(--surface-3);
   }
-  /* Public holidays get a red day number (Sundays stay as they are). */
+  /* Sundays and public holidays get a red day number. */
   .num.holiday-num {
     color: var(--danger);
   }
