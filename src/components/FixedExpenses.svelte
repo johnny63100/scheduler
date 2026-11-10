@@ -79,6 +79,12 @@
   const paidTotal = $derived(items.filter((f) => paidId(f)).reduce((s, f) => s + f.amount, 0));
   const unpaid = $derived(items.filter((f) => !paidId(f)));
   const unpaidTotal = $derived(total - paidTotal);
+  /** This month's fixed costs per category, largest first. */
+  const byCategory = $derived.by(() => {
+    const sums = new Map<string, number>();
+    for (const f of items) sums.set(f.category, (sums.get(f.category) ?? 0) + f.amount);
+    return [...sums].map(([id, value]) => ({ c: categoryOf(id), value })).sort((a, b) => b.value - a.value);
+  });
   /** Unpaid fixed costs in categories that have a budget target (they will eat into the budget). */
   const unpaidInBudget = $derived(unpaid.filter((f) => expenseSettings.categoryBudgets[f.category]).reduce((s, f) => s + f.amount, 0));
   const free = $derived(left - unpaidInBudget);
@@ -214,6 +220,18 @@
         </div>
       {/each}
     </div>
+    {#if byCategory.length > 1}
+      <div class="breakdown">
+        <div class="stack">
+          {#each byCategory as r (r.c.id)}<span style:flex-grow={r.value} style:background={r.c.color} title="{r.c.name} {fmtMoney(r.value)}"></span>{/each}
+        </div>
+        <div class="legend">
+          {#each byCategory as r (r.c.id)}
+            <span class="leg"><i style:background={r.c.color}></i>{r.c.name} <b class="tabular">{fmtMoney(r.value)}</b> <span class="faint">{Math.round((r.value / total) * 100)}%</span></span>
+          {/each}
+        </div>
+      </div>
+    {/if}
     <div class="foot">
       <span>{t('fx.left')} <b class="tabular">{fmtMoney(unpaidTotal)}</b> <span class="faint small">({unpaid.length})</span></span>
       {#if hasBudgets}
@@ -418,5 +436,41 @@
   }
   .edit p {
     margin: 4px 0 0;
+  }
+  .breakdown {
+    margin-top: 14px;
+  }
+  .stack {
+    display: flex;
+    gap: 2px;
+    height: 10px;
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .stack span {
+    flex-basis: 0;
+    min-width: 4px;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .leg i {
+    width: 8px;
+    height: 8px;
+    border-radius: 3px;
+  }
+  .leg b {
+    color: var(--text);
+    font-weight: 700;
   }
 </style>

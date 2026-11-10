@@ -89,6 +89,14 @@
   .ev.todo-due .title::before { content: '☐ '; color: var(--muted); }
   .ev.todo-due.done .title { text-decoration: line-through; color: var(--faint); }
   .chip { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); margin-left: 6px; vertical-align: 1px; }
+  .fx-mix { padding: 12px 14px 10px; border-top: 1px solid var(--border); }
+  .fx-stack { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
+  .fx-stack span { flex-basis: 0; min-width: 4px; }
+  .fx-leg { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; color: var(--muted); }
+  .fx-leg i { width: 8px; height: 8px; border-radius: 3px; flex: none; }
+  .fx-leg .grow { flex: 1; min-width: 0; }
+  .fx-leg b { color: var(--text); font-weight: 700; }
+  .fx-leg .pct { width: 34px; text-align: right; color: var(--faint); font-size: 12px; }
   .chip.err { background: var(--danger-soft); color: var(--danger); }
   .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
   .more { display: block; margin: 0 auto 14px; border: 0; background: none; color: var(--muted); font-size: 13px; text-decoration: underline; }
@@ -1011,6 +1019,15 @@ function renderMoney() {
       const when = late ? `${due(f)}일 · 미납` : `${due(f)}일`;
       return `<div class="row-item fx ${paid ? 'eaten' : ''}"><button class="check" data-fx="${esc(f.id)}" data-paid="${paid ? 1 : 0}" aria-label="납부 체크"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button><div class="grow"><div class="name">${esc(f.name)}${f.month ? '<span class="chip">연간</span>' : ''}</div><div class="k ${late ? 'late' : soon ? 'soon' : ''}">${when}</div></div><span class="amt">${money(f.amount)}</span></div>`;
     }).join('');
+    // This month's fixed costs per category: one stacked bar in shades of the theme color, then the amounts.
+    const sums = new Map();
+    for (const f of fixed) sums.set(f.category, (sums.get(f.category) ?? 0) + Number(f.amount));
+    if (sums.size > 1 && total > 0) {
+      const parts = [...sums].sort((a, b) => b[1] - a[1]);
+      const shade = (i) => `color-mix(in srgb, var(--text) ${Math.max(18, 85 - i * 18)}%, transparent)`;
+      html += `<div class="fx-mix"><div class="fx-stack">${parts.map(([, v], i) => `<span style="flex-grow:${v};background:${shade(i)}"></span>`).join('')}</div>`;
+      html += parts.map(([c, v], i) => { const [, label, icon] = catOf(c); return `<div class="fx-leg"><i style="background:${shade(i)}"></i><span class="grow">${icon} ${label}</span><b>${money(v)}</b><span class="pct">${Math.round((v / total) * 100)}%</span></div>`; }).join('') + '</div>';
+    }
     html += '</div></div>';
   }
   let day = '';
