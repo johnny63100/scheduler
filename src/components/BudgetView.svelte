@@ -6,7 +6,7 @@
   import FixedExpenses from './FixedExpenses.svelte';
   import { api, type Expense } from '../lib/api';
   import { addMonths, fmt, monthStart, parseYmd, today } from '../lib/dates';
-  import { categoriesFor, categoryBudgetTotal, expenseSettings, fmtMoney, fmtMoneyShort, saveCategoryBudgets, type Category } from '../lib/expenses.svelte';
+  import { categoriesFor, categoryBudgetTotal, countsInStats, expenseSettings, fmtMoney, fmtMoneyShort, saveCategoryBudgets, type Category } from '../lib/expenses.svelte';
   import { t } from '../lib/i18n.svelte';
   import { data, load, toast } from '../lib/state.svelte';
 
@@ -42,7 +42,7 @@
 
   type Row = { id: string; label: string; color: string; icon: Category['icon']; budget: number; spent: number };
   const rows = $derived<Row[]>(
-    categoriesFor('expense', true).map((c) => ({ id: c.id, label: c.name, color: c.color, icon: c.icon, budget: budgets[c.id] ?? 0, spent: spentBy[c.id] ?? 0 }))
+    categoriesFor('expense', true).filter((c) => !c.excluded).map((c) => ({ id: c.id, label: c.name, color: c.color, icon: c.icon, budget: budgets[c.id] ?? 0, spent: spentBy[c.id] ?? 0 }))
       .filter((r) => r.budget > 0 || r.spent > 0)
       .sort((a, b) => Number(b.budget > 0) - Number(a.budget > 0) || ratio(b) - ratio(a) || b.spent - a.spent),
   );
@@ -59,7 +59,7 @@
     data.version;
     const from = addMonths(month, -(MONTHS - 1));
     const end = month.slice(0, 8) + String(daysInMonth).padStart(2, '0');
-    load(api.expensesBetween(from, end), []).then((list) => (history = list.filter((e) => e.kind !== 'income')));
+    load(api.expensesBetween(from, end), []).then((list) => (history = list.filter((e) => e.kind !== 'income' && countsInStats(e.category))));
   });
   const trend = $derived.by(() => {
     const keys = Object.keys(budgets);
@@ -80,7 +80,7 @@
   let editing = $state(false);
   let form = $state<Record<string, string>>({});
   function startEdit() {
-    form = Object.fromEntries(categoriesFor('expense').map((c) => [c.id, budgets[c.id] ? String(budgets[c.id]) : '']));
+    form = Object.fromEntries(categoriesFor('expense').filter((c) => !c.excluded).map((c) => [c.id, budgets[c.id] ? String(budgets[c.id]) : '']));
     editing = true;
   }
   const formTotal = $derived(Object.values(form).reduce((s, v) => s + (Number(v) > 0 ? Number(v) : 0), 0));
@@ -140,7 +140,7 @@
     {#if editing}
       <p class="faint small hint">{t('bd.editHint')}</p>
       <div class="edit-grid">
-        {#each categoriesFor('expense') as c (c.id)}
+        {#each categoriesFor('expense').filter((c) => !c.excluded) as c (c.id)}
           <label class="edit-row" style:--c={c.color}>
             <span class="cat-icon"><c.icon size={15} /></span>
             <span class="name truncate">{c.name}</span>

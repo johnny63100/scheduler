@@ -2,7 +2,7 @@
   // Edit money book categories: rename, change icon or color, hide built-ins, add or delete your own.
   // Records keep their category id, so hiding or deleting never changes past entries
   // (entries in a deleted category show under "Other").
-  import { ArrowDown, ArrowUp, Eye, EyeOff, Plus, RotateCcw, Trash } from '@lucide/svelte';
+  import { ArrowDown, ArrowUp, ChartPie, Eye, EyeOff, Plus, RotateCcw, Trash } from '@lucide/svelte';
   import Modal from './Modal.svelte';
   import type { ExpenseKind } from '../lib/api';
   import {
@@ -70,7 +70,7 @@
     <button class:active={kind === 'expense'} onclick={() => ((kind = 'expense'), (picking = null))}>{t('ex.kindExpense')}</button>
     <button class:active={kind === 'income'} onclick={() => ((kind = 'income'), (picking = null))}>{t('ex.kindIncome')}</button>
   </div>
-  <p class="faint small hint">{t('xc.hint')}</p>
+  <p class="faint small hint">{t('xc.hint')} {t('xc.statsHint')}</p>
 
   <div class="list">
     {#each shown as c, i (c.id)}
@@ -91,6 +91,14 @@
           {#if c.label && c.name}
             <button class="icon-btn" onclick={() => reset(c)} title={t('xc.resetName')} aria-label={t('xc.resetName')}><RotateCcw size={15} /></button>
           {/if}
+          <button
+            class="icon-btn stats"
+            class:off={c.excluded}
+            onclick={() => (c.excluded = !c.excluded)}
+            title={c.excluded ? t('xc.include') : t('xc.exclude')}
+            aria-label={c.excluded ? t('xc.include') : t('xc.exclude')}
+            aria-pressed={!c.excluded}
+          ><ChartPie size={15} /></button>
           <button class="icon-btn" onclick={() => move(c, -1)} disabled={i === 0} aria-label={t('xc.up')}><ArrowUp size={15} /></button>
           <button class="icon-btn" onclick={() => move(c, 1)} disabled={i === shown.length - 1} aria-label={t('xc.down')}><ArrowDown size={15} /></button>
           {#if c.custom}
@@ -103,6 +111,7 @@
             <span class="icon-btn-space"></span>
           {/if}
         </div>
+        {#if c.excluded}<p class="faint small excluded-note">{t('xc.excludedNote')}</p>{/if}
         {#if picking === c.id}
           <div class="picker">
             <div class="icons">
@@ -228,5 +237,12 @@
     margin-top: 10px;
     width: 100%;
     justify-content: center;
+  }
+  .stats.off {
+    opacity: 0.35;
+    text-decoration: line-through;
+  }
+  .excluded-note {
+    margin: 4px 0 0 44px;
   }
 </style>

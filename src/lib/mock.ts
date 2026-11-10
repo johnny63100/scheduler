@@ -194,6 +194,8 @@ export function installMock() {
   expenses.push(
     { id: 1900, amount: 2_400_000, category: 'salary', date: addDays(t, -3), note: '월급', kind: 'income' },
     { id: 1901, amount: 120_000, category: 'lesson', date: addDays(t, -8), note: '드로잉 레슨', kind: 'income' },
+    { id: 1902, amount: 96_000, category: 'settle', date: t, note: '친구들 저녁', kind: 'expense' },
+    { id: 1903, amount: 72_000, category: 'settle_income', date: t, note: '저녁값 정산', kind: 'income' },
   );
   const trpg: TrpgEntry[] = ([
     { id: 2000, kind: 'rulebook', title: 'Call of Cthulhu 7th Edition', writer: 'Chaosium', system: 'CoC 7th', links: [], image: null, date: null, role: '', pair: '', folder: '', memo: '', created_at: now - 86_400 * 90 },

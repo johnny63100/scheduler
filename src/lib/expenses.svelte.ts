@@ -4,7 +4,7 @@
 import type { Component } from 'svelte';
 import {
   Baby, Beer, BookOpen, Briefcase, Brush, Bus, Cake, Car, Cat, CircleEllipsis, Clapperboard, Coffee, Coins, Dices, Dog, Dumbbell, Fuel,
-  GraduationCap, HeartHandshake, HeartPulse, House, Gamepad2, Gift, Landmark, Laptop, Music, Palette, PiggyBank, Pill, Pizza, Plane,
+  GraduationCap, HeartHandshake, HeartPulse, House, Gamepad2, Gift, HandCoins, Undo2, Landmark, Laptop, Music, Palette, PiggyBank, Pill, Pizza, Plane,
   Presentation, Receipt, Scissors, Shirt, ShoppingBag, Smartphone, Sparkles, Store, Ticket, Tv, Utensils, Wifi, Wrench,
 } from '@lucide/svelte';
 import { api, type ExpenseKind } from './api';
@@ -57,6 +57,8 @@ export const CATEGORY_ICONS: Record<string, { icon: IconComp; emoji: string }> =
   support: { icon: HeartHandshake, emoji: '💜' },
   coins: { icon: Coins, emoji: '🪙' },
   bank: { icon: Landmark, emoji: '🏦' },
+  handcoins: { icon: HandCoins, emoji: '💸' },
+  undo: { icon: Undo2, emoji: '↩️' },
   more: { icon: CircleEllipsis, emoji: '📎' },
 };
 
@@ -74,6 +76,8 @@ export type CategoryDef = {
   icon: string;
   color: string;
   hidden?: boolean;
+  /** Left out of totals, charts and budgets (e.g. paying for friends and being paid back). */
+  excluded?: boolean;
   custom?: boolean;
 };
 
@@ -89,6 +93,7 @@ const BUILT_IN: CategoryDef[] = [
   { id: 'education', kind: 'expense', label: 'ex.cat.education', icon: 'school', color: '#22b5bf' },
   { id: 'travel', kind: 'expense', label: 'ex.cat.travel', icon: 'plane', color: '#34c38f' },
   { id: 'gifts', kind: 'expense', label: 'ex.cat.gifts', icon: 'gift', color: '#f5b83d' },
+  { id: 'settle', kind: 'expense', label: 'ex.cat.settle', icon: 'handcoins', color: '#94a3b8', excluded: true },
   { id: 'other', kind: 'expense', label: 'ex.cat.other', icon: 'more', color: '#94a3b8' },
   // Where income comes from; broad enough for jobs, side work and creative income alike.
   { id: 'salary', kind: 'income', label: 'ex.in.salary', icon: 'briefcase', color: '#4aa8ff' },
@@ -99,6 +104,7 @@ const BUILT_IN: CategoryDef[] = [
   { id: 'creator', kind: 'income', label: 'ex.in.creator', icon: 'support', color: '#b164e8' },
   { id: 'allowance', kind: 'income', label: 'ex.in.allowance', icon: 'coins', color: '#f5b83d' },
   { id: 'investment', kind: 'income', label: 'ex.in.investment', icon: 'bank', color: '#34c38f' },
+  { id: 'settle_income', kind: 'income', label: 'ex.in.settle', icon: 'undo', color: '#94a3b8', excluded: true },
   { id: 'other_income', kind: 'income', label: 'ex.in.other', icon: 'more', color: '#94a3b8' },
 ];
 
@@ -116,6 +122,7 @@ export type Category = {
   iconKey: string;
   color: string;
   hidden: boolean;
+  excluded: boolean;
   custom: boolean;
 };
 
@@ -129,6 +136,7 @@ export function resolveCategory(c: CategoryDef): Category {
     iconKey: c.icon in CATEGORY_ICONS ? c.icon : 'more',
     color: c.color,
     hidden: !!c.hidden,
+    excluded: !!c.excluded,
     custom: !!c.custom,
   };
 }
@@ -141,9 +149,12 @@ export function categoriesFor(kind: ExpenseKind, includeHidden = false): Categor
 export const categoryOf = (id: string): Category => {
   const found = categoryStore.list.find((c) => c.id === id);
   if (found) return resolveCategory(found);
-  const fallback = categoryStore.list.find((c) => c.id === FALLBACK.expense) ?? BUILT_IN[11];
+  const fallback = categoryStore.list.find((c) => c.id === FALLBACK.expense) ?? BUILT_IN.find((c) => c.id === FALLBACK.expense)!;
   return resolveCategory(fallback);
 };
+
+/** Whether entries in this category count in totals, charts and budgets. */
+export const countsInStats = (categoryId: string) => !categoryStore.list.find((c) => c.id === categoryId)?.excluded;
 
 /** Saved list merged with the built-ins (new built-ins in a later version still appear). */
 function mergeCategories(raw: string | null): CategoryDef[] {
@@ -158,16 +169,21 @@ function mergeCategories(raw: string | null): CategoryDef[] {
   const out: CategoryDef[] = saved.map((c) => {
     const base = BUILT_IN.find((b) => b.id === c.id);
     return base
-      ? { ...base, name: c.name || undefined, icon: c.icon || base.icon, color: c.color || base.color, hidden: !!c.hidden }
-      : { id: c.id, kind: c.kind, name: c.name || c.id, icon: c.icon || 'more', color: c.color || '#94a3b8', hidden: !!c.hidden, custom: true };
+      ? { ...base, name: c.name || undefined, icon: c.icon || base.icon, color: c.color || base.color, hidden: !!c.hidden, excluded: c.excluded ?? base.excluded }
+      : { id: c.id, kind: c.kind, name: c.name || c.id, icon: c.icon || 'more', color: c.color || '#94a3b8', hidden: !!c.hidden, excluded: !!c.excluded, custom: true };
   });
-  for (const b of BUILT_IN) if (!out.some((c) => c.id === b.id)) out.push({ ...b });
+  // New built-ins from a later version go just before that kind's fallback ("Other").
+  for (const b of BUILT_IN) {
+    if (out.some((c) => c.id === b.id)) continue;
+    const at = out.findIndex((c) => c.id === FALLBACK[b.kind]);
+    out.splice(at < 0 ? out.length : at, 0, { ...b });
+  }
   return out;
 }
 
 export async function saveCategories(list: CategoryDef[]) {
   categoryStore.list = list.map((c) => ({ ...c, hidden: Object.values(FALLBACK).includes(c.id as never) ? false : c.hidden }));
-  const stored = categoryStore.list.map(({ id, kind, name, icon, color, hidden, custom }) => ({ id, kind, name, icon, color, hidden, custom }));
+  const stored = categoryStore.list.map(({ id, kind, name, icon, color, hidden, excluded, custom }) => ({ id, kind, name, icon, color, hidden, excluded: !!excluded, custom }));
   await api.setSetting('expense.categories', JSON.stringify(stored)).catch(() => {});
 }
 

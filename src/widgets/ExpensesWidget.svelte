@@ -3,7 +3,7 @@
   import { Wallet } from '@lucide/svelte';
   import { api, type Expense } from '../lib/api';
   import { monthStart, parseYmd, today } from '../lib/dates';
-  import { categoryOf, expenseSettings, fmtMoney, loadExpenseSettings } from '../lib/expenses.svelte';
+  import { categoryOf, countsInStats, expenseSettings, fmtMoney, loadExpenseSettings } from '../lib/expenses.svelte';
   import { t } from '../lib/i18n.svelte';
   import { data, load, ui } from '../lib/state.svelte';
 
@@ -22,7 +22,7 @@
   });
 
   // Income is shown in the money book; this tile is about spending.
-  const spending = $derived(expenses.filter((e) => e.kind !== 'income'));
+  const spending = $derived(expenses.filter((e) => e.kind !== 'income' && countsInStats(e.category)));
   const total = $derived(spending.reduce((s, e) => s + e.amount, 0));
   const used = $derived(expenseSettings.budget ? total / expenseSettings.budget : 0);
   const top = $derived.by(() => {

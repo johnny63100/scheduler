@@ -15,7 +15,7 @@
   import { commissionFocus, netPayment } from '../lib/commissions.svelte';
   import { addMonths, fmt, monthStart, parseYmd, range, today } from '../lib/dates';
   import {
-    CURRENCIES, categoriesFor, categoryOf, currencySymbol, expenseSettings, fmtMoney, fmtMoneyShort,
+    CURRENCIES, categoriesFor, categoryOf, countsInStats, currencySymbol, expenseSettings, fmtMoney, fmtMoneyShort,
     categoryBudgetTotal, loadExpenseSettings, monthlyBudget, saveExpenseSettings,
   } from '../lib/expenses.svelte';
   import { t } from '../lib/i18n.svelte';
@@ -62,8 +62,9 @@
     load(api.commissions(), []).then((c) => (commissions = c));
   });
 
-  const spending = $derived(expenses.filter((e) => e.kind !== 'income'));
-  const incomes = $derived(expenses.filter((e) => e.kind === 'income'));
+  // Categories marked "not in stats" (e.g. paying for friends, being paid back) stay in the list but out of every total.
+  const spending = $derived(expenses.filter((e) => e.kind !== 'income' && countsInStats(e.category)));
+  const incomes = $derived(expenses.filter((e) => e.kind === 'income' && countsInStats(e.category)));
   /**
    * Payments recorded in the commission manager, shown here as income after platform fees.
    * They are read from there (not copied), so the two never disagree; edit them over there.
@@ -86,7 +87,7 @@
   const daysSoFar = $derived(isCurrentMonth ? parseYmd(today()).getDate() : daysInMonth);
   // Compare with the same days of last month (e.g. Oct 1–7 vs Sep 1–7), not the whole month.
   const lastMonthSamePeriod = $derived(
-    lastMonth.filter((e) => e.kind !== 'income' && Number(e.date.slice(8)) <= daysSoFar).reduce((s, x) => s + x.amount, 0),
+    lastMonth.filter((e) => e.kind !== 'income' && countsInStats(e.category) && Number(e.date.slice(8)) <= daysSoFar).reduce((s, x) => s + x.amount, 0),
   );
   const change = $derived(lastMonthSamePeriod > 0 ? (total - lastMonthSamePeriod) / lastMonthSamePeriod : null);
   const budget = $derived(monthlyBudget());
@@ -120,7 +121,7 @@
     for (const [date, row] of rows.sort((a, b) => b[0].localeCompare(a[0]))) map.set(date, [...(map.get(date) ?? []), row]);
     return [...map.entries()];
   });
-  const rowAmount = (r: Row) => (r.type === 'linked' ? r.p.amount : r.e.kind === 'income' ? r.e.amount : -r.e.amount);
+  const rowAmount = (r: Row) => (r.type === 'linked' ? r.p.amount : !countsInStats(r.e.category) ? 0 : r.e.kind === 'income' ? r.e.amount : -r.e.amount);
 
   function openCommission(id: number) {
     commissionFocus.id = id;
@@ -346,11 +347,11 @@
         {#if r.type === 'entry'}
           {@const e = r.e}
           {@const c = categoryOf(e.category)}
-          <button class="expense" class:income={e.kind === 'income'} style:--c={c.color} onclick={() => (editing = { ...e })} oncontextmenu={(ev) => rowMenu(ev, e)}>
+          <button class="expense" class:income={e.kind === 'income'} class:excluded={c.excluded} style:--c={c.color} onclick={() => (editing = { ...e })} oncontextmenu={(ev) => rowMenu(ev, e)}>
             <span class="cat-icon"><c.icon size={18} /></span>
             <span class="exp-text">
               <span class="strong">{e.note || c.name}</span>
-              {#if e.note}<span class="faint small">{c.name}</span>{/if}
+              {#if e.note || c.excluded}<span class="faint small">{e.note ? c.name : ''}{#if c.excluded}{e.note ? ' · ' : ''}{t('xc.excludedTag')}{/if}</span>{/if}
             </span>
             <span class="exp-amount tabular">{e.kind === 'income' ? '+' : ''}{fmtMoney(e.amount)}</span>
           </button>
@@ -751,5 +752,8 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+  }
+  .expense.excluded .exp-amount {
+    color: var(--faint);
   }
 </style>
