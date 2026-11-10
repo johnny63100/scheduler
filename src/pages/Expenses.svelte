@@ -2,19 +2,21 @@
   import Select from '../components/Select.svelte';
   import { onMount } from 'svelte';
   import {
-    Brush, ChevronLeft, ChevronRight, CopyPlus, HandCoins, Pencil, PiggyBank, Plus, Scale, Settings2, Trash, TrendingDown, TrendingUp, Wallet,
+    Brush, ChevronLeft, ChevronRight, CopyPlus, HandCoins, Pencil, PiggyBank, Plus, Scale, Settings2, Shapes, Trash, TrendingDown, TrendingUp, Wallet,
   } from '@lucide/svelte';
   import Modal from '../components/Modal.svelte';
   import DateField from '../components/DateField.svelte';
   import StatCard from '../components/StatCard.svelte';
   import BarChart from '../components/BarChart.svelte';
+  import BudgetView from '../components/BudgetView.svelte';
+  import CategoryManager from '../components/CategoryManager.svelte';
   import ConfirmButton from '../components/ConfirmButton.svelte';
   import { api, type Commission, type Expense, type ExpenseKind } from '../lib/api';
   import { commissionFocus, netPayment } from '../lib/commissions.svelte';
   import { addMonths, fmt, monthStart, parseYmd, range, today } from '../lib/dates';
   import {
-    CATEGORIES, CURRENCIES, INCOME_CATEGORIES, categoryOf, currencySymbol, expenseSettings, fmtMoney, fmtMoneyShort,
-    loadExpenseSettings, saveExpenseSettings,
+    CURRENCIES, categoriesFor, categoryOf, currencySymbol, expenseSettings, fmtMoney, fmtMoneyShort,
+    categoryBudgetTotal, loadExpenseSettings, monthlyBudget, saveExpenseSettings,
   } from '../lib/expenses.svelte';
   import { t } from '../lib/i18n.svelte';
   import { openMenu } from '../lib/menu.svelte';
@@ -27,19 +29,21 @@
   let settingsOpen = $state(false);
   let settingsForm = $state({ currency: '', budget: '', linkCommissions: true });
   let commissions = $state<Commission[]>([]);
+  /** Records (history and quick add) or budget targets. */
+  let view = $state<'records' | 'budget'>('records');
+  let categoriesOpen = $state(false);
 
   // Quick-add form: spending or income.
   let kind = $state<ExpenseKind>('expense');
   let amount = $state('');
   let category = $state('food');
-  const categoriesFor = (k: ExpenseKind) => (k === 'income' ? INCOME_CATEGORIES : CATEGORIES);
   function setKind(k: ExpenseKind) {
     kind = k;
     category = categoriesFor(k)[0].id;
   }
   let date = $state(today());
   let note = $state('');
-  let amountInput: HTMLInputElement;
+  let amountInput = $state<HTMLInputElement>();
 
   const daysInMonth = $derived(new Date(parseYmd(month).getFullYear(), parseYmd(month).getMonth() + 1, 0).getDate());
   const monthEnd = $derived(month.slice(0, 8) + String(daysInMonth).padStart(2, '0'));
@@ -85,7 +89,7 @@
     lastMonth.filter((e) => e.kind !== 'income' && Number(e.date.slice(8)) <= daysSoFar).reduce((s, x) => s + x.amount, 0),
   );
   const change = $derived(lastMonthSamePeriod > 0 ? (total - lastMonthSamePeriod) / lastMonthSamePeriod : null);
-  const budget = $derived(expenseSettings.budget);
+  const budget = $derived(monthlyBudget());
   const budgetUsed = $derived(budget ? total / budget : 0);
 
   /** Which side the category breakdown shows. */
@@ -93,7 +97,7 @@
   const byCategory = $derived.by(() => {
     const list = breakdown === 'income' ? incomes : spending;
     const extra = breakdown === 'income' ? linkedTotal : 0;
-    return categoriesFor(breakdown)
+    return categoriesFor(breakdown, true)
       .map((c) => ({ ...c, value: list.filter((e) => e.category === c.id).reduce((s, e) => s + e.amount, 0) + (c.id === 'commission' ? extra : 0) }))
       .filter((c) => c.value > 0)
       .sort((a, b) => b.value - a.value);
@@ -202,8 +206,18 @@
       <button class="icon-btn" onclick={() => (month = addMonths(month, 1))} aria-label={t('common.next')}><ChevronRight size={18} /></button>
       {#if !isCurrentMonth}<button class="btn small" onclick={() => (month = monthStart(today()))}>{t('common.today')}</button>{/if}
     </div>
+    <button class="btn" onclick={() => (categoriesOpen = true)}><Shapes size={16} /> {t('xc.button')}</button>
     <button class="btn" onclick={openSettings}><Settings2 size={16} /> {t('ex.settings')}</button>
   </div>
+
+  <div class="segmented view-tabs">
+    <button class:active={view === 'records'} onclick={() => (view = 'records')}><Wallet size={15} /> {t('bd.tabRecords')}</button>
+    <button class:active={view === 'budget'} onclick={() => (view = 'budget')}><PiggyBank size={15} /> {t('bd.tabBudget')}</button>
+  </div>
+
+  {#if view === 'budget'}
+    <BudgetView {month} {spending} />
+  {:else}
 
   <div class="stats">
     <StatCard
@@ -237,7 +251,7 @@
         />
         <div class="budget-bar" class:over={budgetUsed > 1}><span style:width="{Math.min(100, budgetUsed * 100)}%"></span></div>
       {:else}
-        <button class="set-budget" onclick={openSettings}>
+        <button class="set-budget" onclick={() => (view = 'budget')}>
           <PiggyBank size={20} />
           <span class="strong">{t('ex.setBudget')}</span>
           <span class="faint small">{t('ex.noBudget')}</span>
@@ -272,9 +286,9 @@
       </div>
       <div class="cats">
         {#each categoriesFor(kind) as c (c.id)}
-          <button type="button" class="cat" class:on={category === c.id} style:--c={c.color} onclick={() => (category = c.id)} title={t(c.label)}>
+          <button type="button" class="cat" class:on={category === c.id} style:--c={c.color} onclick={() => (category = c.id)} title={c.name}>
             <span class="cat-icon"><c.icon size={18} /></span>
-            <span class="truncate">{t(c.label)}</span>
+            <span class="truncate">{c.name}</span>
           </button>
         {/each}
       </div>
@@ -302,7 +316,7 @@
             {#each byCategory as c (c.id)}
               <div class="cat-row" style:--c={c.color}>
                 <span class="cat-icon small-icon"><c.icon size={15} /></span>
-                <span class="cat-name truncate">{t(c.label)}</span>
+                <span class="cat-name truncate">{c.name}</span>
                 <span class="cat-bar"><span style:width="{(c.value / byCategory[0].value) * 100}%"></span></span>
                 <span class="cat-amount tabular">{fmtMoney(c.value)}</span>
                 <span class="cat-pct faint small">{pct(c.value / breakdownTotal)}</span>
@@ -335,8 +349,8 @@
           <button class="expense" class:income={e.kind === 'income'} style:--c={c.color} onclick={() => (editing = { ...e })} oncontextmenu={(ev) => rowMenu(ev, e)}>
             <span class="cat-icon"><c.icon size={18} /></span>
             <span class="exp-text">
-              <span class="strong">{e.note || t(c.label)}</span>
-              {#if e.note}<span class="faint small">{t(c.label)}</span>{/if}
+              <span class="strong">{e.note || c.name}</span>
+              {#if e.note}<span class="faint small">{c.name}</span>{/if}
             </span>
             <span class="exp-amount tabular">{e.kind === 'income' ? '+' : ''}{fmtMoney(e.amount)}</span>
           </button>
@@ -360,6 +374,7 @@
       </div>
     {/each}
   </div>
+  {/if}
 </div>
 
 {#if editing}
@@ -384,10 +399,10 @@
     <div class="field">
       <span class="label">{t('ex.category')}</span>
       <div class="cats">
-        {#each categoriesFor(editing.kind) as c (c.id)}
+        {#each [...categoriesFor(editing.kind), ...(categoriesFor(editing.kind, true).filter((x) => x.hidden && x.id === editing?.category))] as c (c.id)}
           <button type="button" class="cat" class:on={editing.category === c.id} style:--c={c.color} onclick={() => editing && (editing.category = c.id)}>
             <span class="cat-icon"><c.icon size={18} /></span>
-            <span class="truncate">{t(c.label)}</span>
+            <span class="truncate">{c.name}</span>
           </button>
         {/each}
       </div>
@@ -405,6 +420,10 @@
   </Modal>
 {/if}
 
+{#if categoriesOpen}
+  <CategoryManager onclose={() => (categoriesOpen = false)} />
+{/if}
+
 {#if settingsOpen}
   <Modal title={t('ex.settings')} onclose={() => (settingsOpen = false)} width={420}>
     <div class="field">
@@ -413,7 +432,11 @@
     </div>
     <div class="field">
       <label for="ex-budget">{t('ex.budget')}</label>
-      <input id="ex-budget" class="input" type="number" min="0" step="any" placeholder={t('ex.budgetPlaceholder')} bind:value={settingsForm.budget} />
+      {#if categoryBudgetTotal() > 0}
+        <p class="muted small budget-note">{t('bd.settingsNote', { amount: fmtMoney(categoryBudgetTotal()) })}</p>
+      {:else}
+        <input id="ex-budget" class="input" type="number" min="0" step="any" placeholder={t('ex.budgetPlaceholder')} bind:value={settingsForm.budget} />
+      {/if}
     </div>
     <label class="link-setting">
       <span>
@@ -440,6 +463,17 @@
     min-width: 120px;
     text-align: center;
     font-weight: 700;
+  }
+  .view-tabs {
+    margin-bottom: 16px;
+  }
+  .view-tabs button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .budget-note {
+    margin: 2px 0 0;
   }
   .stats {
     display: grid;

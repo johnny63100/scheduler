@@ -426,7 +426,20 @@ const EX_CATS = [['food', '식비', '🍚'], ['cafe', '카페·간식', '☕'], 
   ['health', '건강', '💊'], ['fun', '여가·취미', '🎮'], ['education', '교육', '📚'], ['travel', '여행', '✈️'], ['gifts', '선물', '🎁'], ['other', '기타', '📎']];
 const IN_CATS = [['salary', '월급', '💼'], ['sidejob', '부업·알바', '💻'], ['commission', '외주·커미션', '🎨'], ['lesson', '강의·레슨', '🧑‍🏫'], ['sales', '판매·굿즈', '🏪'],
   ['creator', '창작·후원', '💜'], ['allowance', '용돈', '🪙'], ['investment', '이자·투자', '🏦'], ['other_income', '기타 수입', '➕']];
-const catOf = (id) => EX_CATS.find((c) => c[0] === id) ?? IN_CATS.find((c) => c[0] === id) ?? [id, id, '📎'];
+/** Icon keys used by the PC app's category editor, as emoji. */
+const ICON_EMOJI = {utensils:'🍚',coffee:'☕',pizza:'🍕',cake:'🍰',beer:'🍺',bus:'🚌',car:'🚗',fuel:'⛽',plane:'✈️',bag:'🛍️',shirt:'👕',scissors:'💇',house:'🏠',receipt:'🧾',phone:'📱',wifi:'📶',tv:'📺',health:'💊',pill:'💉',dumbbell:'🏋️',game:'🎮',dice:'🎲',music:'🎵',film:'🎬',ticket:'🎟️',book:'📖',school:'📚',palette:'🎨',gift:'🎁',cat:'🐱',dog:'🐶',baby:'🍼',wrench:'🔧',sparkles:'✨',piggy:'🐷',briefcase:'💼',laptop:'💻',brush:'🖌️',lesson:'🧑‍🏫',store:'🏪',support:'💜',coins:'🪙',bank:'🏦',more:'📎'};
+/** Categories of one kind as [id, name, emoji], following the order, names and icons set on the PC. */
+function catsFor(kind, includeHidden = false) {
+  const base = kind === 'income' ? IN_CATS : EX_CATS;
+  const saved = (snapshot?.money?.categories ?? []).filter((c) => c && c.kind === kind);
+  if (!saved.length) return base;
+  const out = saved
+    .filter((c) => includeHidden || !c.hidden)
+    .map((c) => { const def = base.find((b) => b[0] === c.id); return [c.id, c.name || def?.[1] || c.id, ICON_EMOJI[c.icon] || def?.[2] || '📎']; });
+  for (const b of base) if (!saved.some((c) => c.id === b[0])) out.push(b);
+  return out;
+}
+const catOf = (id) => [...catsFor('expense', true), ...catsFor('income', true)].find((c) => c[0] === id) ?? catsFor('expense', true).find((c) => c[0] === 'other') ?? [id, id, '📎'];
 const exOf = (id) => EXERCISES.find((e) => e[0] === id) ?? [id, id, 4, '💪'];
 /** The PC uploads at least every 10 minutes while it runs. */
 const PC_STALE_MS = 16 * 60 * 1000;
@@ -925,17 +938,28 @@ function renderMoney() {
   const maxMonth = addDays(today, 31).slice(0, 7);
   let html = `<div class="daynav"><button data-mm="-1" ${moneyMonth <= minMonth ? 'disabled' : ''}>‹</button><h2>${y}년 ${mo}월</h2><button data-mm="1" ${moneyMonth >= maxMonth ? 'disabled' : ''}>›</button></div>`;
   html += `<div class="kcal money-sum"><div class="label">지출</div><div class="big">${money(spent)}</div>`;
-  if (m.budget && moneyMonth === today.slice(0, 7)) {
-    const left = m.budget - spent;
-    html += `<div class="bar2"><i style="width:${Math.min(100, (spent / m.budget) * 100)}%;background:${left < 0 ? 'var(--danger)' : 'var(--primary)'}"></i></div>
-      <div class="label">${left >= 0 ? `예산 ${money(m.budget)} 중 <b style="color:var(--text)">${money(left)}</b> 남았어요` : `예산보다 <b style="color:var(--danger)">${money(-left)}</b> 더 썼어요`}</div>`;
+  const targets = m.category_budgets ?? {};
+  const targetTotal = Object.values(targets).reduce((a, v) => a + Number(v || 0), 0);
+  const budget = targetTotal || m.budget;
+  // With category targets, only spending in those categories counts against the budget.
+  const counted = targetTotal ? list.filter((x) => x.kind !== 'income' && targets[x.category]).reduce((a, x) => a + Number(x.amount), 0) : spent;
+  if (budget) {
+    const left = budget - counted;
+    html += `<div class="bar2"><i style="width:${Math.min(100, (counted / budget) * 100)}%;background:${left < 0 ? 'var(--danger)' : 'var(--primary)'}"></i></div>
+      <div class="label">${left >= 0 ? `예산 ${money(budget)} 중 <b style="color:var(--text)">${money(left)}</b> 남았어요` : `예산보다 <b style="color:var(--danger)">${money(-left)}</b> 더 썼어요`}</div>`;
   }
   html += `<div class="nums" style="margin-top:12px;grid-template-columns:1fr 1fr"><div>수입<b class="amt in">+${money(income)}</b></div><div>수입 − 지출<b>${money(income - spent)}</b></div></div>`;
   const byCat = new Map();
   for (const x of list) if (x.kind !== 'income') byCat.set(x.category, (byCat.get(x.category) ?? 0) + Number(x.amount));
-  const top = [...byCat].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  if (top.length) {
-    html += '<div class="cats">' + top.map(([c, v]) => { const [, label, icon] = catOf(c); return `<div class="c"><span>${icon}</span><span>${label}</span><span class="amt">${money(v)}</span><div class="track"><i style="width:${(v / top[0][1]) * 100}%"></i></div></div>`; }).join('') + '</div>';
+  if (targetTotal) {
+    // Budget vs spending per category with a target, most used first.
+    const rows = Object.keys(targets).map((c) => [c, byCat.get(c) ?? 0, Number(targets[c])]).sort((a, b) => b[1] / b[2] - a[1] / a[2]);
+    html += '<div class="cats">' + rows.map(([c, v, t]) => { const [, label, icon] = catOf(c); const over = v > t; return `<div class="c"><span>${icon}</span><span>${label}</span><span class="amt" ${over ? 'style="color:var(--danger)"' : ''}>${money(v)}<span style="color:var(--faint);font-weight:500"> / ${money(t)}</span></span><div class="track"><i style="width:${Math.min(100, (v / t) * 100)}%;${over ? 'background:var(--danger)' : ''}"></i></div></div>`; }).join('') + '</div>';
+  } else {
+    const top = [...byCat].sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if (top.length) {
+      html += '<div class="cats">' + top.map(([c, v]) => { const [, label, icon] = catOf(c); return `<div class="c"><span>${icon}</span><span>${label}</span><span class="amt">${money(v)}</span><div class="track"><i style="width:${(v / top[0][1]) * 100}%"></i></div></div>`; }).join('') + '</div>';
+    }
   }
   html += '</div>';
   let day = '';
@@ -1171,7 +1195,7 @@ function showSheet() {
 
 // ---- money sheet
 function drawCats() {
-  const cats = kind === 'income' ? IN_CATS : EX_CATS;
+  const cats = catsFor(kind === 'income' ? 'income' : 'expense');
   if (!cats.some((c) => c[0] === moneyCat)) moneyCat = cats[0][0];
   $('#catgrid').innerHTML = cats.map(([id, label, icon]) => `<button type="button" data-cat="${id}" class="${id === moneyCat ? 'on' : ''}"><span>${icon}</span>${label}</button>`).join('');
   $('#money-submit').textContent = editingMoney ? '저장' : kind === 'income' ? '수입 추가' : '지출 추가';

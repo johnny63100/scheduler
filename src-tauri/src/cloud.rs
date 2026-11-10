@@ -339,6 +339,18 @@ fn snapshot(db: &Db) -> db::DbResult<Value> {
     let money = json!({
         "currency": db.setting("expense.currency")?.filter(|c| !c.is_empty()).unwrap_or_else(|| "KRW".into()),
         "budget": db.setting("expense.budget")?.and_then(|b| b.parse::<f64>().ok()).filter(|b| *b > 0.0),
+        // The user's category list (renamed, re-iconed, hidden or added categories).
+        "categories": db
+            .setting("expense.categories")?
+            .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+            .filter(Value::is_array)
+            .unwrap_or_else(|| json!([])),
+        // Monthly target per category (JSON object), set in the Budget tab.
+        "category_budgets": db
+            .setting("expense.categoryBudgets")?
+            .and_then(|raw| serde_json::from_str::<Value>(&raw).ok())
+            .filter(Value::is_object)
+            .unwrap_or_else(|| json!({})),
         "expenses": db.expenses_between(mfrom, today + chrono::Duration::days(31))?,
     });
     Ok(json!({

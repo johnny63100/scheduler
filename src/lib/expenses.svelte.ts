@@ -1,42 +1,178 @@
-// Money book categories (spending and income, with preset icons/colors) and currency formatting.
+// Money book categories (spending and income) and currency formatting.
+// The built-in categories can be renamed, re-iconed, recolored or hidden; the user can add their own.
+// The list is stored in the setting `expense.categories` (see `saveCategories`).
 import type { Component } from 'svelte';
 import {
-  Briefcase, Brush, Bus, CircleEllipsis, Coffee, Coins, GraduationCap, HeartHandshake, HeartPulse, House, Gamepad2, Gift, Landmark,
-  Laptop, Plane, Presentation, Receipt, ShoppingBag, Store, Utensils,
+  Baby, Beer, BookOpen, Briefcase, Brush, Bus, Cake, Car, Cat, CircleEllipsis, Clapperboard, Coffee, Coins, Dices, Dog, Dumbbell, Fuel,
+  GraduationCap, HeartHandshake, HeartPulse, House, Gamepad2, Gift, Landmark, Laptop, Music, Palette, PiggyBank, Pill, Pizza, Plane,
+  Presentation, Receipt, Scissors, Shirt, ShoppingBag, Smartphone, Sparkles, Store, Ticket, Tv, Utensils, Wifi, Wrench,
 } from '@lucide/svelte';
-import { api } from './api';
-import { intlLocale, i18n, type Key } from './i18n.svelte';
+import { api, type ExpenseKind } from './api';
+import { intlLocale, i18n, t, type Key } from './i18n.svelte';
 
-export const CATEGORIES: { id: string; label: Key; icon: Component<{ size?: number }>; color: string }[] = [
-  { id: 'food', label: 'ex.cat.food', icon: Utensils, color: '#ff8a5c' },
-  { id: 'cafe', label: 'ex.cat.cafe', icon: Coffee, color: '#b0773f' },
-  { id: 'transport', label: 'ex.cat.transport', icon: Bus, color: '#4aa8ff' },
-  { id: 'shopping', label: 'ex.cat.shopping', icon: ShoppingBag, color: '#f2668b' },
-  { id: 'housing', label: 'ex.cat.housing', icon: House, color: '#7c74ff' },
-  { id: 'bills', label: 'ex.cat.bills', icon: Receipt, color: '#7d8597' },
-  { id: 'health', label: 'ex.cat.health', icon: HeartPulse, color: '#ef5d6c' },
-  { id: 'fun', label: 'ex.cat.fun', icon: Gamepad2, color: '#b164e8' },
-  { id: 'education', label: 'ex.cat.education', icon: GraduationCap, color: '#22b5bf' },
-  { id: 'travel', label: 'ex.cat.travel', icon: Plane, color: '#34c38f' },
-  { id: 'gifts', label: 'ex.cat.gifts', icon: Gift, color: '#f5b83d' },
-  { id: 'other', label: 'ex.cat.other', icon: CircleEllipsis, color: '#94a3b8' },
+type IconComp = Component<{ size?: number }>;
+
+/** Icons a category can use; `emoji` is what the phone page shows. */
+export const CATEGORY_ICONS: Record<string, { icon: IconComp; emoji: string }> = {
+  utensils: { icon: Utensils, emoji: '🍚' },
+  coffee: { icon: Coffee, emoji: '☕' },
+  pizza: { icon: Pizza, emoji: '🍕' },
+  cake: { icon: Cake, emoji: '🍰' },
+  beer: { icon: Beer, emoji: '🍺' },
+  bus: { icon: Bus, emoji: '🚌' },
+  car: { icon: Car, emoji: '🚗' },
+  fuel: { icon: Fuel, emoji: '⛽' },
+  plane: { icon: Plane, emoji: '✈️' },
+  bag: { icon: ShoppingBag, emoji: '🛍️' },
+  shirt: { icon: Shirt, emoji: '👕' },
+  scissors: { icon: Scissors, emoji: '💇' },
+  house: { icon: House, emoji: '🏠' },
+  receipt: { icon: Receipt, emoji: '🧾' },
+  phone: { icon: Smartphone, emoji: '📱' },
+  wifi: { icon: Wifi, emoji: '📶' },
+  tv: { icon: Tv, emoji: '📺' },
+  health: { icon: HeartPulse, emoji: '💊' },
+  pill: { icon: Pill, emoji: '💉' },
+  dumbbell: { icon: Dumbbell, emoji: '🏋️' },
+  game: { icon: Gamepad2, emoji: '🎮' },
+  dice: { icon: Dices, emoji: '🎲' },
+  music: { icon: Music, emoji: '🎵' },
+  film: { icon: Clapperboard, emoji: '🎬' },
+  ticket: { icon: Ticket, emoji: '🎟️' },
+  book: { icon: BookOpen, emoji: '📖' },
+  school: { icon: GraduationCap, emoji: '📚' },
+  palette: { icon: Palette, emoji: '🎨' },
+  gift: { icon: Gift, emoji: '🎁' },
+  cat: { icon: Cat, emoji: '🐱' },
+  dog: { icon: Dog, emoji: '🐶' },
+  baby: { icon: Baby, emoji: '🍼' },
+  wrench: { icon: Wrench, emoji: '🔧' },
+  sparkles: { icon: Sparkles, emoji: '✨' },
+  piggy: { icon: PiggyBank, emoji: '🐷' },
+  briefcase: { icon: Briefcase, emoji: '💼' },
+  laptop: { icon: Laptop, emoji: '💻' },
+  brush: { icon: Brush, emoji: '🖌️' },
+  lesson: { icon: Presentation, emoji: '🧑‍🏫' },
+  store: { icon: Store, emoji: '🏪' },
+  support: { icon: HeartHandshake, emoji: '💜' },
+  coins: { icon: Coins, emoji: '🪙' },
+  bank: { icon: Landmark, emoji: '🏦' },
+  more: { icon: CircleEllipsis, emoji: '📎' },
+};
+
+/** Colors offered for categories. */
+export const CATEGORY_COLORS = [
+  '#ff8a5c', '#b0773f', '#f5b83d', '#34c38f', '#22b5bf', '#4aa8ff', '#7c74ff', '#b164e8', '#f2668b', '#ef5d6c', '#7d8597', '#94a3b8',
 ];
 
-/** Where income comes from; broad enough for jobs, side work and creative income alike. */
-export const INCOME_CATEGORIES: { id: string; label: Key; icon: Component<{ size?: number }>; color: string }[] = [
-  { id: 'salary', label: 'ex.in.salary', icon: Briefcase, color: '#4aa8ff' },
-  { id: 'sidejob', label: 'ex.in.sidejob', icon: Laptop, color: '#7c74ff' },
-  { id: 'commission', label: 'ex.in.commission', icon: Brush, color: '#f2668b' },
-  { id: 'lesson', label: 'ex.in.lesson', icon: Presentation, color: '#22b5bf' },
-  { id: 'sales', label: 'ex.in.sales', icon: Store, color: '#ff8a5c' },
-  { id: 'creator', label: 'ex.in.creator', icon: HeartHandshake, color: '#b164e8' },
-  { id: 'allowance', label: 'ex.in.allowance', icon: Coins, color: '#f5b83d' },
-  { id: 'investment', label: 'ex.in.investment', icon: Landmark, color: '#34c38f' },
-  { id: 'other_income', label: 'ex.in.other', icon: CircleEllipsis, color: '#94a3b8' },
+/** A stored category. Built-ins have `label` (translated name) until renamed; custom ones have `custom`. */
+export type CategoryDef = {
+  id: string;
+  kind: ExpenseKind;
+  label?: Key;
+  name?: string;
+  icon: string;
+  color: string;
+  hidden?: boolean;
+  custom?: boolean;
+};
+
+const BUILT_IN: CategoryDef[] = [
+  { id: 'food', kind: 'expense', label: 'ex.cat.food', icon: 'utensils', color: '#ff8a5c' },
+  { id: 'cafe', kind: 'expense', label: 'ex.cat.cafe', icon: 'coffee', color: '#b0773f' },
+  { id: 'transport', kind: 'expense', label: 'ex.cat.transport', icon: 'bus', color: '#4aa8ff' },
+  { id: 'shopping', kind: 'expense', label: 'ex.cat.shopping', icon: 'bag', color: '#f2668b' },
+  { id: 'housing', kind: 'expense', label: 'ex.cat.housing', icon: 'house', color: '#7c74ff' },
+  { id: 'bills', kind: 'expense', label: 'ex.cat.bills', icon: 'receipt', color: '#7d8597' },
+  { id: 'health', kind: 'expense', label: 'ex.cat.health', icon: 'health', color: '#ef5d6c' },
+  { id: 'fun', kind: 'expense', label: 'ex.cat.fun', icon: 'game', color: '#b164e8' },
+  { id: 'education', kind: 'expense', label: 'ex.cat.education', icon: 'school', color: '#22b5bf' },
+  { id: 'travel', kind: 'expense', label: 'ex.cat.travel', icon: 'plane', color: '#34c38f' },
+  { id: 'gifts', kind: 'expense', label: 'ex.cat.gifts', icon: 'gift', color: '#f5b83d' },
+  { id: 'other', kind: 'expense', label: 'ex.cat.other', icon: 'more', color: '#94a3b8' },
+  // Where income comes from; broad enough for jobs, side work and creative income alike.
+  { id: 'salary', kind: 'income', label: 'ex.in.salary', icon: 'briefcase', color: '#4aa8ff' },
+  { id: 'sidejob', kind: 'income', label: 'ex.in.sidejob', icon: 'laptop', color: '#7c74ff' },
+  { id: 'commission', kind: 'income', label: 'ex.in.commission', icon: 'brush', color: '#f2668b' },
+  { id: 'lesson', kind: 'income', label: 'ex.in.lesson', icon: 'lesson', color: '#22b5bf' },
+  { id: 'sales', kind: 'income', label: 'ex.in.sales', icon: 'store', color: '#ff8a5c' },
+  { id: 'creator', kind: 'income', label: 'ex.in.creator', icon: 'support', color: '#b164e8' },
+  { id: 'allowance', kind: 'income', label: 'ex.in.allowance', icon: 'coins', color: '#f5b83d' },
+  { id: 'investment', kind: 'income', label: 'ex.in.investment', icon: 'bank', color: '#34c38f' },
+  { id: 'other_income', kind: 'income', label: 'ex.in.other', icon: 'more', color: '#94a3b8' },
 ];
 
-export const categoryOf = (id: string) =>
-  CATEGORIES.find((c) => c.id === id) ?? INCOME_CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[CATEGORIES.length - 1];
+/** Categories every list falls back to; they can be renamed but not hidden. */
+export const FALLBACK = { expense: 'other', income: 'other_income' } as const;
+
+export const categoryStore = $state({ list: BUILT_IN.map((c) => ({ ...c })) as CategoryDef[] });
+
+/** A category ready to show. */
+export type Category = {
+  id: string;
+  kind: ExpenseKind;
+  name: string;
+  icon: IconComp;
+  iconKey: string;
+  color: string;
+  hidden: boolean;
+  custom: boolean;
+};
+
+export function resolveCategory(c: CategoryDef): Category {
+  const icon = CATEGORY_ICONS[c.icon] ?? CATEGORY_ICONS.more;
+  return {
+    id: c.id,
+    kind: c.kind,
+    name: c.name?.trim() || (c.label ? t(c.label) : c.id),
+    icon: icon.icon,
+    iconKey: c.icon in CATEGORY_ICONS ? c.icon : 'more',
+    color: c.color,
+    hidden: !!c.hidden,
+    custom: !!c.custom,
+  };
+}
+
+/** Categories of one kind in order; hidden ones only when asked (e.g. for old records). */
+export function categoriesFor(kind: ExpenseKind, includeHidden = false): Category[] {
+  return categoryStore.list.filter((c) => c.kind === kind && (includeHidden || !c.hidden)).map(resolveCategory);
+}
+
+export const categoryOf = (id: string): Category => {
+  const found = categoryStore.list.find((c) => c.id === id);
+  if (found) return resolveCategory(found);
+  const fallback = categoryStore.list.find((c) => c.id === FALLBACK.expense) ?? BUILT_IN[11];
+  return resolveCategory(fallback);
+};
+
+/** Saved list merged with the built-ins (new built-ins in a later version still appear). */
+function mergeCategories(raw: string | null): CategoryDef[] {
+  let saved: CategoryDef[] = [];
+  try {
+    const parsed = JSON.parse(raw || '[]');
+    if (Array.isArray(parsed)) saved = parsed.filter((c) => c && typeof c.id === 'string' && (c.kind === 'expense' || c.kind === 'income'));
+  } catch {
+    saved = [];
+  }
+  if (!saved.length) return BUILT_IN.map((c) => ({ ...c }));
+  const out: CategoryDef[] = saved.map((c) => {
+    const base = BUILT_IN.find((b) => b.id === c.id);
+    return base
+      ? { ...base, name: c.name || undefined, icon: c.icon || base.icon, color: c.color || base.color, hidden: !!c.hidden }
+      : { id: c.id, kind: c.kind, name: c.name || c.id, icon: c.icon || 'more', color: c.color || '#94a3b8', hidden: !!c.hidden, custom: true };
+  });
+  for (const b of BUILT_IN) if (!out.some((c) => c.id === b.id)) out.push({ ...b });
+  return out;
+}
+
+export async function saveCategories(list: CategoryDef[]) {
+  categoryStore.list = list.map((c) => ({ ...c, hidden: Object.values(FALLBACK).includes(c.id as never) ? false : c.hidden }));
+  const stored = categoryStore.list.map(({ id, kind, name, icon, color, hidden, custom }) => ({ id, kind, name, icon, color, hidden, custom }));
+  await api.setSetting('expense.categories', JSON.stringify(stored)).catch(() => {});
+}
+
+/** A new id for a category the user adds. */
+export const newCategoryId = () => `c${Date.now().toString(36)}`;
 
 export const CURRENCIES = ['KRW', 'USD', 'EUR', 'JPY', 'GBP', 'CNY', 'CAD', 'AUD'] as const;
 
@@ -48,15 +184,21 @@ export const expenseSettings = $state({
   budget: null as number | null,
   /** Show payments from the commission manager (after fees) as income. */
   linkCommissions: true,
+  /** Monthly spending target per category id (the same every month). */
+  categoryBudgets: {} as Record<string, number>,
   loaded: false,
 });
 
 export async function loadExpenseSettings() {
-  const [currency, budget, link] = await Promise.all([
+  const [currency, budget, link, perCategory, cats] = await Promise.all([
     api.getSetting('expense.currency').catch(() => null),
     api.getSetting('expense.budget').catch(() => null),
     api.getSetting('expense.linkCommissions').catch(() => null),
+    api.getSetting('expense.categoryBudgets').catch(() => null),
+    api.getSetting('expense.categories').catch(() => null),
   ]);
+  categoryStore.list = mergeCategories(cats);
+  expenseSettings.categoryBudgets = parseBudgets(perCategory);
   expenseSettings.linkCommissions = link !== 'false';
   expenseSettings.currency = currency ?? ({ ko: 'KRW', ja: 'JPY', en: 'USD' } as const)[i18n.locale];
   expenseSettings.budget = budget && Number(budget) > 0 ? Number(budget) : null;
@@ -71,6 +213,26 @@ export async function saveExpenseSettings(currency: string, budget: number | nul
   await api.setSetting('expense.currency', currency).catch(() => {});
   await api.setSetting('expense.budget', expenseSettings.budget ? String(expenseSettings.budget) : '').catch(() => {});
 }
+
+function parseBudgets(raw: string | null): Record<string, number> {
+  try {
+    const obj = JSON.parse(raw || '{}') as Record<string, unknown>;
+    return Object.fromEntries(Object.entries(obj).filter(([, v]) => typeof v === 'number' && v > 0)) as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+export async function saveCategoryBudgets(budgets: Record<string, number>) {
+  expenseSettings.categoryBudgets = Object.fromEntries(Object.entries(budgets).filter(([, v]) => v > 0));
+  await api.setSetting('expense.categoryBudgets', JSON.stringify(expenseSettings.categoryBudgets)).catch(() => {});
+}
+
+/** Sum of the category targets, if any are set. */
+export const categoryBudgetTotal = () => Object.values(expenseSettings.categoryBudgets).reduce((s, v) => s + v, 0);
+
+/** The month's spending budget: the category targets added up, or the single monthly budget. */
+export const monthlyBudget = () => categoryBudgetTotal() || expenseSettings.budget;
 
 export function fmtMoney(amount: number, currency = expenseSettings.currency || 'USD'): string {
   const digits = NO_DECIMALS.has(currency) ? 0 : 2;
