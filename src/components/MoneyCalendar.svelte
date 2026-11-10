@@ -1,7 +1,8 @@
 <script lang="ts">
   // Money book calendar: how much was spent on each day of the month, with weekly totals,
   // no-spend days and the day's records under the grid. Categories left out of stats don't count.
-  import type { Expense } from '../lib/api';
+  import { api, type Expense } from '../lib/api';
+  import { NotebookPen } from '@lucide/svelte';
   import { addDays, fmt, monthStart, parseYmd, range, today, weekStart, weekdayNames } from '../lib/dates';
   import { categoryOf, countsInStats, fmtMoney } from '../lib/expenses.svelte';
   import { holidayName } from '../lib/holidays';
@@ -52,6 +53,46 @@
   });
   const dayList = $derived(selected ? expenses.filter((e) => e.date === selected) : []);
   const names = $derived(weekdayNames('short'));
+
+  // ---- monthly review: free text per month, saved as you type (setting "expense.reviews": { "YYYY-MM": text })
+  let reviews: Record<string, string> = {};
+  let review = $state('');
+  let reviewsLoaded = $state(false);
+  let saved = $state(false);
+  let saveTimer: ReturnType<typeof setTimeout> | undefined;
+  $effect(() => {
+    api
+      .getSetting('expense.reviews')
+      .then((raw) => {
+        try {
+          reviews = raw ? JSON.parse(raw) : {};
+        } catch {
+          reviews = {};
+        }
+      })
+      .catch(() => {})
+      .finally(() => (reviewsLoaded = true));
+  });
+  $effect(() => {
+    if (!reviewsLoaded) return;
+    review = reviews[monthKey] ?? '';
+    saved = false;
+  });
+  function onReview() {
+    saved = false;
+    const key = monthKey;
+    const text = review;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      if (text.trim()) reviews[key] = text;
+      else delete reviews[key];
+      await api.setSetting('expense.reviews', JSON.stringify(reviews)).catch(() => {});
+      if (key === monthKey) saved = true;
+    }, 600);
+  }
+  const monthLabel = $derived(fmt(month, { month: 'long' }));
+  /** The current month isn't over yet: the box still works, with a gentler hint. */
+  const reviewHint = $derived(isFuture ? t('mc.reviewFuture') : isCurrent ? t('mc.reviewNow') : t('mc.reviewPast'));
 </script>
 
 <div class="money-cal">
@@ -119,9 +160,52 @@
       {/each}
     </div>
   {/if}
+
+  <div class="card review-card">
+    <div class="review-head">
+      <span class="review-icon"><NotebookPen size={15} /></span>
+      <span class="strong">{t('mc.review', { month: monthLabel })}</span>
+      <span class="spacer"></span>
+      {#if saved}<span class="faint small">{t('mc.saved')}</span>{/if}
+    </div>
+    <textarea class="input review" rows="5" bind:value={review} oninput={onReview} placeholder={reviewHint} disabled={!reviewsLoaded || isFuture}></textarea>
+  </div>
 </div>
 
 <style>
+  .review-card {
+    padding: 14px 16px 16px;
+  }
+  .review-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .review-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+  }
+  .spacer {
+    flex: 1;
+  }
+  .review-head .strong {
+    font-weight: 700;
+  }
+  .review {
+    width: 100%;
+    padding: 12px 14px;
+    min-height: 110px;
+    resize: vertical;
+    line-height: 1.6;
+    font: inherit;
+    font-size: 14px;
+  }
   .money-cal {
     display: flex;
     flex-direction: column;
