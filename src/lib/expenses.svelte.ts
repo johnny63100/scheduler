@@ -206,6 +206,8 @@ export const expenseSettings = $state({
   fixed: [] as FixedExpense[],
   /** month "YYYY-MM" -> fixed id -> id of the recorded expense */
   fixedPaid: {} as Record<string, Record<string, number>>,
+  /** month "YYYY-MM" -> ids of fixed expenses skipped that month (not due, not counted) */
+  fixedSkipped: {} as Record<string, string[]>,
   /** How the fixed list is ordered: by category (then the dragged order) or by due day. */
   fixedSort: 'category' as 'category' | 'date',
   loaded: false,
@@ -262,15 +264,29 @@ function parseJson<T>(raw: string | null, fallback: T): T {
 
 /** Reads the fixed list and paid marks (the paid marks also change when ticking from the phone). */
 export async function loadFixed() {
-  const [list, paid, sort] = await Promise.all([
+  const [list, paid, sort, skipped] = await Promise.all([
     api.getSetting('expense.fixed').catch(() => null),
     api.getSetting('expense.fixedPaid').catch(() => null),
     api.getSetting('expense.fixedSort').catch(() => null),
+    api.getSetting('expense.fixedSkipped').catch(() => null),
   ]);
+  expenseSettings.fixedSkipped = parseJson<Record<string, string[]>>(skipped, {});
   expenseSettings.fixedSort = sort === 'date' ? 'date' : 'category';
   const items = parseJson<FixedExpense[]>(list, []);
   expenseSettings.fixed = Array.isArray(items) ? items : [];
   expenseSettings.fixedPaid = parseJson<Record<string, Record<string, number>>>(paid, {});
+}
+
+/** Skips (or un-skips) a fixed expense for one month ("YYYY-MM"). */
+export async function setFixedSkipped(id: string, month: string, skip: boolean) {
+  const all = { ...expenseSettings.fixedSkipped };
+  const list = new Set(all[month] ?? []);
+  if (skip) list.add(id);
+  else list.delete(id);
+  if (list.size) all[month] = [...list];
+  else delete all[month];
+  expenseSettings.fixedSkipped = all;
+  await api.setSetting('expense.fixedSkipped', JSON.stringify(all)).catch(() => {});
 }
 
 export async function saveFixedSort(sort: 'category' | 'date') {

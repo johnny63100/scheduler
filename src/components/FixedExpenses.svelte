@@ -2,11 +2,11 @@
   // Fixed expenses on the Budget tab: payments due every month (or once a year) with a "paid" tick.
   // The list keeps the user's own order; drag the handle on the left to change it.
   // Ticking records the expense on its due date; unticking removes that record (src-tauri/src/fixed.rs).
-  import { Check, GripVertical, Pencil, Plus, Repeat2, Trash, X } from '@lucide/svelte';
+  import { ArrowRight, Check, GripVertical, Pencil, Plus, Repeat2, Trash, X } from '@lucide/svelte';
   import { api, type Expense } from '../lib/api';
   import { monthStart, parseYmd, today } from '../lib/dates';
   import {
-    categoriesFor, categoryOf, expenseSettings, fixedDueIn, fmtMoney, loadFixed, newFixedId, saveFixed, saveFixedSort, type FixedExpense,
+    categoriesFor, categoryOf, expenseSettings, fixedDueIn, fmtMoney, loadFixed, newFixedId, saveFixed, saveFixedSort, setFixedSkipped, type FixedExpense,
   } from '../lib/expenses.svelte';
   import { t } from '../lib/i18n.svelte';
   import { data, toast } from '../lib/state.svelte';
@@ -75,19 +75,26 @@
     dragId = null;
     dragOrder = null;
   }
-  const total = $derived(items.reduce((s, f) => s + f.amount, 0));
-  const paidTotal = $derived(items.filter((f) => paidId(f)).reduce((s, f) => s + f.amount, 0));
-  const unpaid = $derived(items.filter((f) => !paidId(f)));
+  /** Skipped this month: shown with an arrow, left out of every total. */
+  const isSkipped = (f: FixedExpense) => !!expenseSettings.fixedSkipped[key]?.includes(f.id) && !paidId(f);
+  const counted = $derived(items.filter((f) => !isSkipped(f)));
+  const total = $derived(counted.reduce((s, f) => s + f.amount, 0));
+  const paidTotal = $derived(counted.filter((f) => paidId(f)).reduce((s, f) => s + f.amount, 0));
+  const unpaid = $derived(counted.filter((f) => !paidId(f)));
   const unpaidTotal = $derived(total - paidTotal);
   /** This month's fixed costs per category, largest first. */
   const byCategory = $derived.by(() => {
     const sums = new Map<string, number>();
-    for (const f of items) sums.set(f.category, (sums.get(f.category) ?? 0) + f.amount);
+    for (const f of counted) sums.set(f.category, (sums.get(f.category) ?? 0) + f.amount);
     return [...sums].map(([id, value]) => ({ c: categoryOf(id), value })).sort((a, b) => b.value - a.value);
   });
   /** Unpaid fixed costs in categories that have a budget target (they will eat into the budget). */
   const unpaidInBudget = $derived(unpaid.filter((f) => expenseSettings.categoryBudgets[f.category]).reduce((s, f) => s + f.amount, 0));
   const free = $derived(left - unpaidInBudget);
+
+  async function skip(f: FixedExpense, on: boolean) {
+    await setFixedSkipped(f.id, key, on);
+  }
 
   let busy = $state<string | null>(null);
   async function toggle(f: FixedExpense) {
@@ -192,27 +199,37 @@
       {#each items as f (f.id)}
         {@const c = categoryOf(f.category)}
         {@const isPaid = !!paidId(f)}
-        {@const late = !isPaid && ((isCurrentMonth && dueDay(f) < todayDay) || month < monthStart(today()))}
-        {@const soon = !isPaid && isCurrentMonth && !late && dueDay(f) - todayDay <= 3}
-        <div class="item" class:paid={isPaid} class:dragging={dragId === f.id} ondragover={(e) => dragOver(e, f)} ondrop={(e) => e.preventDefault()} role="listitem">
+        {@const skipped = isSkipped(f)}
+        {@const late = !isPaid && !skipped && ((isCurrentMonth && dueDay(f) < todayDay) || month < monthStart(today()))}
+        {@const soon = !isPaid && !skipped && isCurrentMonth && !late && dueDay(f) - todayDay <= 3}
+        <div class="item" class:paid={isPaid} class:skipped class:dragging={dragId === f.id} ondragover={(e) => dragOver(e, f)} ondrop={(e) => e.preventDefault()} role="listitem">
           {#if !byDate && items.length > 1}
             <span class="handle" draggable="true" ondragstart={(e) => dragStart(e, f)} ondragend={dragEnd} title={t('fx.drag')} aria-label={t('fx.drag')} role="button" tabindex="-1">
               <GripVertical size={15} />
             </span>
           {/if}
-          <button
-            class="check"
-            class:on={isPaid}
-            disabled={busy === f.id}
-            onclick={() => toggle(f)}
-            title={isPaid ? t('fx.unpay') : t('fx.pay')}
-            aria-label={isPaid ? t('fx.unpay') : t('fx.pay')}
-            aria-pressed={isPaid}
-          >
-            <Check size={14} />
-          </button>
+          {#if skipped}
+            <button class="check skip-mark" onclick={() => skip(f, false)} title={t('fx.unskip')} aria-label={t('fx.unskip')}>
+              <ArrowRight size={14} />
+            </button>
+          {:else}
+            <button
+              class="check"
+              class:on={isPaid}
+              disabled={busy === f.id}
+              onclick={() => toggle(f)}
+              title={isPaid ? t('fx.unpay') : t('fx.pay')}
+              aria-label={isPaid ? t('fx.unpay') : t('fx.pay')}
+              aria-pressed={isPaid}
+            >
+              <Check size={14} />
+            </button>
+          {/if}
           <span class="cat" style:--c={c.color}><c.icon size={14} /></span>
           <span class="name truncate">{f.name}{#if f.month}<span class="yearly">{t('fx.yearlyTag')}</span>{/if}</span>
+          {#if !isPaid && !skipped}
+            <button class="skip-btn small" onclick={() => skip(f, true)} class:show={late}>{t('fx.skip')}</button>
+          {/if}
           <span class="when small" class:late class:soon>
             {isPaid ? t('fx.paidOn', { day: dueDay(f) }) : late ? t('fx.late', { day: dueDay(f) }) : t('fx.due', { day: dueDay(f) })}
           </span>
@@ -356,6 +373,40 @@
     flex: 1;
     min-width: 0;
     font-weight: 600;
+  }
+  .check.skip-mark {
+    border-color: var(--faint);
+    background: var(--surface-2);
+    color: var(--muted);
+  }
+  .check.skip-mark:hover {
+    border-color: var(--muted);
+    color: var(--text);
+  }
+  .item.skipped .name,
+  .item.skipped .amt,
+  .item.skipped .when {
+    color: var(--faint);
+  }
+  .skip-btn {
+    display: none;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    border-radius: 7px;
+    padding: 2px 8px;
+    font: inherit;
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .skip-btn:hover {
+    color: var(--text);
+    border-color: var(--muted);
+  }
+  .item:hover .skip-btn,
+  .skip-btn.show {
+    display: inline-block;
   }
   .item.paid .name,
   .item.paid .amt {

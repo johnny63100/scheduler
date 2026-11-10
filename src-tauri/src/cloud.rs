@@ -347,6 +347,11 @@ fn snapshot(db: &Db) -> db::DbResult<Value> {
             .into_iter()
             .filter(|(m, _)| m.as_str() >= mfrom.format("%Y-%m").to_string().as_str())
             .collect::<std::collections::BTreeMap<_, _>>(),
+        // Fixed payments skipped for a month: { "YYYY-MM": ["<fixed id>", ...] }.
+        "fixed_skipped": db
+            .setting("expense.fixedSkipped")?
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(&raw).ok())
+            .unwrap_or_else(|| json!({})),
         // The user's category list (renamed, re-iconed, hidden or added categories).
         "categories": db
             .setting("expense.categories")?

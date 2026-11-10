@@ -2,13 +2,14 @@
   import Select from '../components/Select.svelte';
   import { onMount } from 'svelte';
   import {
-    Brush, ChevronLeft, ChevronRight, CopyPlus, HandCoins, Pencil, PiggyBank, Plus, Scale, Settings2, Shapes, Trash, TrendingDown, TrendingUp, Wallet,
+    Brush, CalendarDays, ChevronLeft, ChevronRight, CopyPlus, HandCoins, Pencil, PiggyBank, Plus, Scale, Settings2, Shapes, Trash, TrendingDown, TrendingUp, Wallet,
   } from '@lucide/svelte';
   import Modal from '../components/Modal.svelte';
   import DateField from '../components/DateField.svelte';
   import StatCard from '../components/StatCard.svelte';
   import BarChart from '../components/BarChart.svelte';
   import BudgetView from '../components/BudgetView.svelte';
+  import MoneyCalendar from '../components/MoneyCalendar.svelte';
   import CategoryManager from '../components/CategoryManager.svelte';
   import ConfirmButton from '../components/ConfirmButton.svelte';
   import { api, type Commission, type Expense, type ExpenseKind } from '../lib/api';
@@ -30,7 +31,7 @@
   let settingsForm = $state({ currency: '', budget: '', linkCommissions: true });
   let commissions = $state<Commission[]>([]);
   /** Records (history and quick add) or budget targets. */
-  let view = $state<'records' | 'budget'>('records');
+  let view = $state<'records' | 'budget' | 'calendar'>('records');
   let categoriesOpen = $state(false);
 
   // Quick-add form: spending or income.
@@ -224,10 +225,13 @@
   <div class="segmented view-tabs">
     <button class:active={view === 'records'} onclick={() => (view = 'records')}><Wallet size={15} /> {t('bd.tabRecords')}</button>
     <button class:active={view === 'budget'} onclick={() => (view = 'budget')}><PiggyBank size={15} /> {t('bd.tabBudget')}</button>
+    <button class:active={view === 'calendar'} onclick={() => (view = 'calendar')}><CalendarDays size={15} /> {t('mc.tab')}</button>
   </div>
 
   {#if view === 'budget'}
     <BudgetView {month} {spending} />
+  {:else if view === 'calendar'}
+    <MoneyCalendar {month} {expenses} onedit={(e) => (editing = { ...e })} />
   {:else}
 
   <div class="stats">

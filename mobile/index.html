@@ -89,6 +89,9 @@
   .ev.todo-due .title::before { content: '☐ '; color: var(--muted); }
   .ev.todo-due.done .title { text-decoration: line-through; color: var(--faint); }
   .chip { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--primary-soft); color: var(--primary); margin-left: 6px; vertical-align: 1px; }
+  .row-item.fx.skipped .name, .row-item.fx.skipped .amt, .row-item.fx.skipped .k { color: var(--faint); }
+  .check.skip { display: grid; place-items: center; border-style: solid; border-color: var(--faint); background: var(--surface-2); color: var(--muted); }
+  .check.skip svg { width: 14px; height: 14px; opacity: 1; color: var(--muted); }
   .fx-mix { padding: 12px 14px 10px; border-top: 1px solid var(--border); }
   .fx-stack { display: flex; gap: 2px; height: 8px; border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
   .fx-stack span { flex-basis: 0; min-width: 4px; }
@@ -1007,13 +1010,16 @@ function renderMoney() {
     const catIds = catsFor('expense', true).map((c) => c[0]);
     const rank = (f) => { const i = catIds.indexOf(f.category); return i < 0 ? 999 : i; };
     fixed.sort(m.fixed_sort === 'date' ? (a, b) => due(a) - due(b) : (a, b) => rank(a) - rank(b));
-    const rows = fixed.map((f) => ({ f, paid: fixedPaid(f, moneyMonth, all) }));
-    const total = rows.reduce((a, r) => a + Number(r.f.amount), 0);
+    // Skipped this month on the PC: an arrow instead of the tick, left out of the totals.
+    const skippedIds = m.fixed_skipped?.[moneyMonth] ?? [];
+    const rows = fixed.map((f) => { const paid = fixedPaid(f, moneyMonth, all); return { f, paid, skipped: !paid && skippedIds.includes(f.id) }; });
+    const total = rows.filter((r) => !r.skipped).reduce((a, r) => a + Number(r.f.amount), 0);
     const paidTotal = rows.filter((r) => r.paid).reduce((a, r) => a + Number(r.f.amount), 0);
     const nowDay = Number(today.slice(8));
     const isNow = moneyMonth === today.slice(0, 7);
     html += `<div class="hblock"><div class="section-h">🔁 고정 지출 <small>${money(paidTotal)} / ${money(total)}</small></div><div class="card">`;
-    html += rows.map(({ f, paid }) => {
+    html += rows.map(({ f, paid, skipped }) => {
+      if (skipped) return `<div class="row-item fx skipped"><span class="check skip" aria-label="이번 달 건너뜀"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span><div class="grow"><div class="name">${esc(f.name)}${f.month ? '<span class="chip">연간</span>' : ''}</div><div class="k">${due(f)}일</div></div><span class="amt">${money(f.amount)}</span></div>`;
       const late = !paid && ((isNow && due(f) < nowDay) || moneyMonth < today.slice(0, 7));
       const soon = !paid && isNow && !late && due(f) - nowDay <= 3;
       const when = late ? `${due(f)}일 · 미납` : `${due(f)}일`;
@@ -1021,7 +1027,7 @@ function renderMoney() {
     }).join('');
     // This month's fixed costs per category: one stacked bar in shades of the theme color, then the amounts.
     const sums = new Map();
-    for (const f of fixed) sums.set(f.category, (sums.get(f.category) ?? 0) + Number(f.amount));
+    for (const { f } of rows.filter((r) => !r.skipped)) sums.set(f.category, (sums.get(f.category) ?? 0) + Number(f.amount));
     if (sums.size > 1 && total > 0) {
       const parts = [...sums].sort((a, b) => b[1] - a[1]);
       const shade = (i) => `color-mix(in srgb, var(--text) ${Math.max(18, 85 - i * 18)}%, transparent)`;
