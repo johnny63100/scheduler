@@ -759,7 +759,7 @@ export const ja: Record<Key, string> = {
   'fx.amount': '金額',
   'fx.category': 'カテゴリ',
   'fx.day': '支払日',
-  'fx.namePlaceholder': '例: Roll20 Pro',
+  'fx.namePlaceholder': '名前を入力',
   'fx.daySuffix': '日',
   'fx.cycle': '周期',
   'fx.monthly': '毎月',
