@@ -2,7 +2,7 @@
   import Select from '../components/Select.svelte';
   import { onMount } from 'svelte';
   import {
-    Brush, CalendarDays, ChevronLeft, ChevronRight, CopyPlus, HandCoins, Pencil, PiggyBank, Plus, Scale, Settings2, Shapes, Trash, TrendingDown, TrendingUp, Wallet,
+    BookOpenCheck, Brush, CalendarDays, ChevronLeft, ChevronRight, CopyPlus, HandCoins, Pencil, PiggyBank, Plus, Scale, Settings2, Shapes, Trash, TrendingDown, TrendingUp, Wallet,
   } from '@lucide/svelte';
   import Modal from '../components/Modal.svelte';
   import DateField from '../components/DateField.svelte';
@@ -10,6 +10,7 @@
   import BarChart from '../components/BarChart.svelte';
   import BudgetView from '../components/BudgetView.svelte';
   import MoneyCalendar from '../components/MoneyCalendar.svelte';
+  import YearReview from '../components/YearReview.svelte';
   import CategoryManager from '../components/CategoryManager.svelte';
   import ConfirmButton from '../components/ConfirmButton.svelte';
   import { api, type Commission, type Expense, type ExpenseKind } from '../lib/api';
@@ -31,7 +32,7 @@
   let settingsForm = $state({ currency: '', budget: '', linkCommissions: true });
   let commissions = $state<Commission[]>([]);
   /** Records (history and quick add) or budget targets. */
-  let view = $state<'records' | 'budget' | 'calendar'>('records');
+  let view = $state<'records' | 'budget' | 'calendar' | 'year'>('records');
   let categoriesOpen = $state(false);
 
   // Quick-add form: spending or income.
@@ -213,9 +214,10 @@
     </div>
     <span class="spacer"></span>
     <div class="month-nav">
-      <button class="icon-btn" onclick={() => (month = addMonths(month, -1))} aria-label={t('common.previous')}><ChevronLeft size={18} /></button>
-      <span class="month-label">{fmt(month, { year: 'numeric', month: 'long' })}</span>
-      <button class="icon-btn" onclick={() => (month = addMonths(month, 1))} aria-label={t('common.next')}><ChevronRight size={18} /></button>
+      <!-- On the Year tab the arrows move a whole year. -->
+      <button class="icon-btn" onclick={() => (month = addMonths(month, view === 'year' ? -12 : -1))} aria-label={t('common.previous')}><ChevronLeft size={18} /></button>
+      <span class="month-label">{view === 'year' ? fmt(month, { year: 'numeric' }) : fmt(month, { year: 'numeric', month: 'long' })}</span>
+      <button class="icon-btn" onclick={() => (month = addMonths(month, view === 'year' ? 12 : 1))} aria-label={t('common.next')}><ChevronRight size={18} /></button>
       {#if !isCurrentMonth}<button class="btn small" onclick={() => (month = monthStart(today()))}>{t('common.today')}</button>{/if}
     </div>
     <button class="btn" onclick={() => (categoriesOpen = true)}><Shapes size={16} /> {t('xc.button')}</button>
@@ -226,12 +228,22 @@
     <button class:active={view === 'records'} onclick={() => (view = 'records')}><Wallet size={15} /> {t('bd.tabRecords')}</button>
     <button class:active={view === 'budget'} onclick={() => (view = 'budget')}><PiggyBank size={15} /> {t('bd.tabBudget')}</button>
     <button class:active={view === 'calendar'} onclick={() => (view = 'calendar')}><CalendarDays size={15} /> {t('mc.tab')}</button>
+    <button class:active={view === 'year'} onclick={() => (view = 'year')}><BookOpenCheck size={15} /> {t('yr.tab')}</button>
   </div>
 
   {#if view === 'budget'}
     <BudgetView {month} {spending} />
   {:else if view === 'calendar'}
     <MoneyCalendar {month} {expenses} onedit={(e) => (editing = { ...e })} />
+  {:else if view === 'year'}
+    <YearReview
+      year={parseYmd(month).getFullYear()}
+      {commissions}
+      onmonth={(m) => {
+        month = m;
+        view = 'calendar';
+      }}
+    />
   {:else}
 
   <div class="stats">
